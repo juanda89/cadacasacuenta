@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Caso reportado, sin dictamen">
+  <!-- El techo permanece en Tinta Atrato; el punto carga el estado. Sin dictamen: Azul Aguacero -->
+  <polyline points="4,13 12,4 20,13" fill="none" stroke="#1F3A5F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="16" r="3.2" fill="#4A7BA6"/>
+</svg>

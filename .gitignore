@@ -1,0 +1,17 @@
+# Credenciales — jamás al repositorio
+.env
+.env.*
+!.env.example
+
+# Dependencias y builds
+node_modules/
+.next/
+out/
+dist/
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# Sistema
+.DS_Store
