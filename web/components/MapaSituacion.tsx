@@ -137,7 +137,7 @@ const ESTILO_PAPEL: maplibregl.StyleSpecification = {
   ],
 };
 
-function crearMapa(contenedor: HTMLDivElement) {
+function crearMapa(contenedor: HTMLDivElement, tactil: boolean) {
   return new maplibregl.Map({
     container: contenedor,
     style: ESTILO_PAPEL,
@@ -147,7 +147,15 @@ function crearMapa(contenedor: HTMLDivElement) {
     minZoom: 3.6, // deja que el fitBounds inicial muestre el país entero aunque el lienzo sea bajo
     maxZoom: 18, // con calles OSM el zoom de barrio sí sirve para ubicarse
     attributionControl: false,
-    // zoom directo con el scroll: pedido explícito (sin Ctrl/⌘)
+    // Escritorio: zoom directo con el scroll (pedido explícito, sin Ctrl/⌘).
+    // Táctil: gestos cooperativos — UN dedo hace scroll de la página, DOS
+    // mueven el mapa; sin esto el dedo queda atrapado paneando el mapa.
+    cooperativeGestures: tactil,
+    locale: {
+      "CooperativeGesturesHandler.MobileHelpText": "Usa dos dedos para mover el mapa",
+      "CooperativeGesturesHandler.WindowsHelpText": "Ctrl + rueda para acercar el mapa",
+      "CooperativeGesturesHandler.MacHelpText": "⌘ + rueda para acercar el mapa",
+    },
   });
 }
 
@@ -169,6 +177,11 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
   const [sinWebgl, setSinWebgl] = useState(false);
   const [visibles, setVisibles] = useState<PuntoMapa[]>(puntos.slice(0, 30));
   const [activo, setActivo] = useState<string | null>(null);
+  // En pantallas angostas la leyenda nace plegada: el mapa manda
+  const [leyendaAbierta, setLeyendaAbierta] = useState(true);
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 700px)").matches) setLeyendaAbierta(false);
+  }, []);
 
   const porCodigo = useMemo(() => new Map(puntos.map((p) => [p.codigo_publico, p])), [puntos]);
 
@@ -200,7 +213,7 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
     }
     let map: maplibregl.Map;
     try {
-      map = crearMapa(ref.current);
+      map = crearMapa(ref.current, window.matchMedia("(pointer: coarse)").matches);
     } catch (e) {
       console.warn("mapa sin WebGL:", e);
       setSinWebgl(true);
@@ -218,6 +231,7 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
     // Ciudades de referencia
     for (const c of CIUDADES) {
       const el = document.createElement("div");
+      el.className = c.mayor ? "ciudad-tag mayor" : "ciudad-tag";
       el.setAttribute("aria-hidden", "true");
       el.style.cssText = "display:flex;align-items:center;gap:5px;pointer-events:none;";
       el.innerHTML = `
@@ -367,9 +381,21 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
           </span>
         </div>
 
-        {/* Leyenda con los iconos reales del mapa */}
-        <div className="leyenda panel-vidrio">
-          <h3>Dictamen de habitabilidad</h3>
+        {/* Leyenda con los iconos reales del mapa — plegable (nace cerrada en móvil) */}
+        <div className={`leyenda panel-vidrio ${leyendaAbierta ? "" : "cerrada"}`}>
+          <button
+            type="button"
+            className="leyenda-toggle"
+            aria-expanded={leyendaAbierta}
+            onClick={() => setLeyendaAbierta(!leyendaAbierta)}
+          >
+            <span className="leyenda-titulo">Dictamen de habitabilidad</span>
+            <span aria-hidden="true" style={{ fontWeight: 700, color: "var(--aguacero)" }}>
+              {leyendaAbierta ? "−" : "+"}
+            </span>
+          </button>
+          {leyendaAbierta && (
+          <div>
           {(
             [
               ["habitable", conteo.habitable],
@@ -396,6 +422,8 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
           <div className="leyenda-nota">
             Cada marcador es un hogar. La ubicación pública está redondeada (~110 m) para proteger a cada familia.
           </div>
+          </div>
+          )}
         </div>
       </div>
 

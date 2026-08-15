@@ -411,11 +411,22 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
   position: absolute; left: 16px; bottom: 16px; z-index: 5;
   padding: 16px 18px; max-width: 250px;
 }
-.leyenda h3 { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--arcilla); font-family: var(--font-texto); font-weight: 700; margin-bottom: 10px; }
+.leyenda-toggle {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px;
+  background: none; border: none; cursor: pointer; padding: 0; font-family: inherit;
+}
+.leyenda-titulo { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--arcilla); font-weight: 700; text-align: left; }
+.leyenda-toggle + div { margin-top: 10px; }
 .leyenda-fila { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: var(--grafito); padding: 3px 0; }
 .leyenda-nota { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--vidrio-borde); font-size: 0.72rem; color: var(--arcilla); line-height: 1.45; font-weight: 500; }
 @media (max-width: 700px) {
-  .leyenda { position: static; max-width: none; margin-top: 12px; }
+  /* La leyenda flota compacta sobre el mapa (jamás static: taparía el lienzo) */
+  .leyenda { left: 10px; bottom: 10px; right: auto; max-width: min(78vw, 250px); padding: 10px 14px; }
+  .leyenda.cerrada { padding: 9px 14px; }
+  .sala-mapa { min-height: clamp(400px, 58dvh, 540px); }
+  /* Solo la ciudad mayor (Quibdó) etiqueta el mapa pequeño.
+     !important: los marcadores llevan display:flex inline */
+  .ciudad-tag:not(.mayor) { display: none !important; }
   .mapa-marco { border-radius: 14px; }
 }
 
