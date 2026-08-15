@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { enviarTexto, descargarMedia } from "./kapso";
+import { enviarGlobos, enviarBotones, indicarEscribiendo, descargarMedia } from "./kapso";
+import { aGlobos, ESTILO_PROMPT } from "./estilo";
 import { completa, transcribe } from "./llm";
 
 /**
@@ -20,6 +21,7 @@ export type MensajeEntrante = {
   telefono: string;
   tipo: "text" | "audio" | "image" | "location" | "document" | string;
   texto?: string;
+  botonId?: string | null; // id del botón si la persona tocó Sí/No
   mediaId?: string;
   mimeType?: string;
   lat?: number;
@@ -35,12 +37,14 @@ type Conversacion = {
 };
 
 const SALUDO =
-  "Hola. Soy el asistente de Cada Casa Cuenta. Lamento mucho lo que están viviendo. " +
-  "Estoy aquí para que lo que le pasó a su casa y lo que su familia necesita quede registrado, " +
-  "con evidencia, donde las autoridades lo pueden ver.";
+  "Hola 🤝 soy el asistente de Cada Casa Cuenta. Lamento mucho lo que están viviendo.\n---\n" +
+  "Estoy aquí para que lo que le pasó a su casa y lo que su familia necesita quede " +
+  "registrado, con evidencia, donde las autoridades lo pueden ver.";
 
 export async function procesarMensaje(m: MensajeEntrante) {
   const db = supabaseAdmin();
+  // "escribiendo..." mientras el agente piensa: el turno se siente humano
+  await indicarEscribiendo(m.messageId);
 
   // --- Estado de la conversación (crea si no existe) ---
   let conv: Conversacion;
@@ -135,35 +139,43 @@ export async function procesarMensaje(m: MensajeEntrante) {
   let respuesta: string;
 
   if (conv.fase === "nueva") {
-    const { data: ver } = await db
-      .from("consentimiento_versiones")
-      .select("version, texto")
-      .order("vigente_desde", { ascending: false })
-      .limit(1)
-      .single();
-    respuesta = `${SALUDO}\n\n${ver!.texto}`;
+    const ver = await versionConsentimiento(db);
     conv.fase = "esperando_consentimiento";
     conv.historial = [
       { role: "user", content: textoUsuario },
-      { role: "assistant", content: respuesta },
+      { role: "assistant", content: `${SALUDO}\n\n${ver.texto}` },
     ];
+    await guardar(db, conv);
+    // Saludo en globos + la autorización con botones Sí/No
+    await enviarGlobos(m.telefono, aGlobos(SALUDO));
+    await enviarBotones(m.telefono, ver.texto, [
+      { id: "consent_si", titulo: "Sí, autorizo" },
+      { id: "consent_no", titulo: "No" },
+    ]);
+    return;
   } else if (conv.fase === "esperando_consentimiento") {
-    const veredicto = await completa(
-      [
-        {
-          role: "system",
-          content:
-            'Analiza si la persona AUTORIZA el tratamiento de sus datos. Responde SOLO JSON: {"acepta": true|false|null}. null = respuesta ambigua o pregunta.',
-        },
-        { role: "user", content: textoUsuario },
-      ],
-      true
-    );
+    const ver = await versionConsentimiento(db);
+    // Si tocó un botón, la respuesta es inequívoca; si escribió, decide el LLM.
     let acepta: boolean | null = null;
-    try {
-      acepta = JSON.parse(veredicto).acepta;
-    } catch {
-      acepta = null;
+    if (m.botonId === "consent_si") acepta = true;
+    else if (m.botonId === "consent_no") acepta = false;
+    else {
+      const veredicto = await completa(
+        [
+          {
+            role: "system",
+            content:
+              'Analiza si la persona AUTORIZA el tratamiento de sus datos. Responde SOLO JSON: {"acepta": true|false|null}. null = respuesta ambigua o pregunta.',
+          },
+          { role: "user", content: textoUsuario },
+        ],
+        true
+      );
+      try {
+        acepta = JSON.parse(veredicto).acepta;
+      } catch {
+        acepta = null;
+      }
     }
 
     if (acepta === true) {
@@ -174,7 +186,7 @@ export async function procesarMensaje(m: MensajeEntrante) {
         .insert({
           consentimiento_datos: true,
           consentimiento_at: ahora,
-          consentimiento_version: "v1",
+          consentimiento_version: ver.version,
           kapso_conversation_id: m.conversationId,
           origen_ref: `kapso:${m.messageId}`,
         })
@@ -184,7 +196,7 @@ export async function procesarMensaje(m: MensajeEntrante) {
       await db.from("consentimientos").insert({
         caso_id: caso!.id,
         telefono: m.telefono,
-        version: "v1",
+        version: ver.version,
         acepta: true,
         respuesta_literal: textoUsuario,
         respuesta_es_transcripcion: esTranscripcion,
@@ -194,12 +206,13 @@ export async function procesarMensaje(m: MensajeEntrante) {
       conv.caso_id = caso!.id;
       conv.fase = "recolectando";
       respuesta =
-        "Gracias. Quedó registrada su autorización. Me puede escribir o mandar notas de voz, como le sea más fácil. " +
+        "Listo, quedó registrada su autorización 🤝\n---\n" +
+        "Me puede escribir o mandar notas de voz, como le quede más fácil.\n---\n" +
         "Para empezar: ¿me cuenta qué pasó con su casa, y en qué municipio y barrio o vereda está?";
     } else if (acepta === false) {
       await db.from("consentimientos").insert({
         telefono: m.telefono,
-        version: "v1",
+        version: ver.version,
         acepta: false,
         respuesta_literal: textoUsuario,
         respuesta_es_transcripcion: esTranscripcion,
@@ -208,10 +221,14 @@ export async function procesarMensaje(m: MensajeEntrante) {
       });
       conv.fase = "rechazado";
       respuesta =
-        "Entiendo, y respeto su decisión: no guardaré ningún dato suyo. Si cambia de opinión, escríbame a este mismo número cuando quiera. Que estén bien.";
+        "Entiendo, y respeto su decisión: no guardaré ningún dato suyo.\n---\n" +
+        "Si cambia de opinión, escríbame a este mismo número cuando quiera. Que estén bien.";
     } else {
       respuesta =
-        "Disculpe si no fui claro. Solo necesito saber si autoriza que registremos los datos que me comparta para que las autoridades y los ingenieros voluntarios puedan ver su caso. ¿Me responde sí o no, como le quede más fácil?";
+        "Disculpe si no fui claro.\n---\n" +
+        "Solo necesito saber si autoriza que registremos los datos que me comparta, para que las " +
+        "autoridades y los ingenieros voluntarios puedan ver su caso.\n---\n" +
+        "Tóqueme el botón, o respóndame sí o no, como le quede más fácil.";
     }
     conv.historial = [
       ...conv.historial,
@@ -232,7 +249,18 @@ export async function procesarMensaje(m: MensajeEntrante) {
   }
 
   await guardar(db, conv);
-  await enviarTexto(m.telefono, respuesta);
+  await enviarGlobos(m.telefono, aGlobos(respuesta));
+}
+
+// Última versión vigente del texto de autorización (Ley 1581 de 2012).
+async function versionConsentimiento(db: ReturnType<typeof supabaseAdmin>) {
+  const { data } = await db
+    .from("consentimiento_versiones")
+    .select("version, texto")
+    .order("vigente_desde", { ascending: false })
+    .limit(1)
+    .single();
+  return data as { version: string; texto: string };
 }
 
 type Minimos = {
@@ -265,7 +293,9 @@ async function turnoRecoleccion(
     .eq("caso_id", conv.caso_id!);
   const minimos = await minimosDe(db, conv.caso_id!);
 
-  const sistema = `Eres el asistente de WhatsApp de "Cada Casa Cuenta", el registro humanitario del terremoto del Chocó (Colombia, 2026). Hablas SIEMPRE de "usted", con la calidez respetuosa del campo colombiano. Frases cortas. UNA sola pregunta por mensaje. Jamás dices "víctima", "damnificado" ni "el inmueble". Jamás prometes ayuda, casas o subsidios: prometes que el caso queda registrado, con evidencia, visible para autoridades y profesionales voluntarios. Si la persona cuenta algo doloroso, reconócelo con humanidad y brevedad antes de seguir.
+  const sistema = `Eres el asistente de WhatsApp de "Cada Casa Cuenta", el registro humanitario del terremoto del Chocó (Colombia, 2026).
+
+${ESTILO_PROMPT}
 
 ESTADO ACTUAL DEL CASO (código ${caso!.codigo_publico}):
 ${JSON.stringify({ ...caso, id: undefined }, null, 1)}
@@ -290,7 +320,7 @@ Datos que importan (pregunte SOLO lo que falte, en orden de conversación natura
 
 RESPONDE SOLO ESTE JSON:
 {
- "mensaje": "tu respuesta a la persona (cálida, usted, una sola pregunta)",
+ "mensaje": "tu respuesta a la persona (cálida, de usted, UNA sola pregunta; 2-3 globos separados con una línea que contenga solo ---)",
  "patch_caso": { /* SOLO campos de casos que este mensaje permita llenar, con los nombres exactos de arriba. {} si nada */ },
  "nombre_contacto": "si lo dijo, aquí; si no, null",
  "nuevas_necesidades": [ { "tipo": "...", "detalle": "...", "urgente": false } ],
@@ -368,9 +398,10 @@ RESPONDE SOLO ESTE JSON:
         const { data: c } = await db.from("casos").select("codigo_publico").eq("id", conv.caso_id!).single();
         const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/caso/${c!.codigo_publico}`;
         mensaje =
-          `${mensaje}\n\nSu caso ya quedó registrado. Su código es *${c!.codigo_publico}*. ` +
-          `Guárdelo: es la prueba de que su caso existe, y con él cualquiera puede verlo aquí:\n${url}\n\n` +
-          `Un ingeniero o arquitecto voluntario va a revisar su caso. Si algo cambia — se mudan, consiguen albergue, empeora el daño — escríbame a este número y lo actualizamos.`;
+          `${mensaje}\n---\n` +
+          `Su caso ya quedó registrado ✅ Su código es *${c!.codigo_publico}*. ` +
+          `Guárdelo: este código es la prueba de que su caso existe, y con él cualquiera puede verlo aquí:\n${url}\n---\n` +
+          `Un ingeniero o arquitecto voluntario va a revisar su caso. Si algo cambia (se mudan, consiguen albergue, empeora el daño) escríbame a este número y lo actualizamos. Aquí sigo.`;
       }
     }
   } catch (e) {

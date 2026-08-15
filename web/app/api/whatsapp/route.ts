@@ -78,6 +78,15 @@ function extraerMensajes(payload: any): MensajeEntrante[] {
     };
     if (tipo === "text") {
       e.texto = typeof msg?.text === "string" ? msg.text : msg?.text?.body ?? "";
+    } else if (tipo === "interactive" || tipo === "button") {
+      // Respuesta a botones (p. ej. la autorización Sí/No): se normaliza a texto.
+      e.tipo = "text";
+      e.texto =
+        msg?.interactive?.button_reply?.title ??
+        msg?.interactive?.list_reply?.title ??
+        msg?.button?.text ??
+        "";
+      e.botonId = msg?.interactive?.button_reply?.id ?? msg?.interactive?.list_reply?.id ?? null;
     } else if (tipo === "location") {
       e.lat = msg?.location?.latitude;
       e.lng = msg?.location?.longitude;

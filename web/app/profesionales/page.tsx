@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { Simbolo, Wordmark } from "@/components/Logo";
+import { Cabecera } from "@/components/Cabecera";
+import { Pie } from "@/components/Pie";
 
 export default function Profesionales() {
   const [modo, setModo] = useState<"registro" | "ingreso">("registro");
@@ -71,15 +71,12 @@ export default function Profesionales() {
 
   return (
     <>
-      <header className="contenedor" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Simbolo size={30} />
-          <Wordmark />
-        </Link>
-      </header>
+      <Cabecera />
+      <div style={{ height: 64 }} />
 
-      <main className="contenedor" style={{ maxWidth: 560, paddingBottom: 60 }}>
-        <h1 style={{ fontSize: "1.8rem", margin: "10px 0 6px" }}>
+      <main className="contenedor" style={{ maxWidth: 560, padding: "36px 24px 72px" }}>
+        <span className="kicker" style={{ color: "var(--aguacero)" }}>Profesionales voluntarios</span>
+        <h1 style={{ fontSize: "clamp(1.7rem, 4vw, 2.2rem)", margin: "12px 0 8px" }}>
           Su matrícula puede decirle a una familia si puede volver a dormir en su casa.
         </h1>
         <p style={{ color: "#4A5568", marginBottom: 20 }}>
@@ -131,6 +128,7 @@ export default function Profesionales() {
           </button>
         </form>
       </main>
+      <Pie />
     </>
   );
 }

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "copiar-worker-mapa": "cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/",
+    "predev": "npm run copiar-worker-mapa",
+    "prebuild": "npm run copiar-worker-mapa",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -22,6 +25,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
+    "playwright-core": "^1.62.1",
     "typescript": "^5"
   }
 }

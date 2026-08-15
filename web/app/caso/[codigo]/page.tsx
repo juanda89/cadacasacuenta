@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { Simbolo, Wordmark } from "@/components/Logo";
+import { Cabecera } from "@/components/Cabecera";
+import { Pie } from "@/components/Pie";
 import { Sello, type Dictamen } from "@/components/Sello";
 
 export const revalidate = 60;
@@ -41,15 +41,13 @@ export default async function CasoPublico({ params }: { params: Promise<{ codigo
 
   return (
     <>
-      <header className="contenedor" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Simbolo size={30} />
-          <Wordmark />
-        </Link>
-        <Link href="/#mapa" style={{ fontWeight: 600, textDecoration: "none" }}>← Volver al mapa</Link>
-      </header>
+      <Cabecera />
+      <div style={{ height: 64 }} />
 
-      <main className="contenedor" style={{ maxWidth: 720, paddingBottom: 60 }}>
+      <main className="contenedor" style={{ maxWidth: 720, paddingBottom: 72 }}>
+        <a href="/#mapa" style={{ display: "inline-block", fontWeight: 600, textDecoration: "none", margin: "22px 0 4px", fontSize: ".9rem" }}>
+          ← Volver al mapa
+        </a>
         <div className="tarjeta" style={{ padding: "30px 32px", marginTop: 10 }}>
           <div className="etiqueta">Caso registrado</div>
           <h1 className="codigo" style={{ fontSize: "clamp(1.6rem, 5vw, 2.3rem)", fontFamily: "var(--font-texto)", margin: "6px 0 2px" }}>
@@ -106,6 +104,7 @@ export default async function CasoPublico({ params }: { params: Promise<{ codigo
           exacta de la vivienda. La familia puede actualizar su caso escribiendo al WhatsApp oficial con su código.
         </p>
       </main>
+      <Pie />
     </>
   );
 }

@@ -19,6 +19,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
+      <head>
+        {/* Marca que el JS está vivo: los reveals solo ocultan contenido si esto corrió */}
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+      </head>
       <body className={`${display.variable} ${texto.variable}`}>{children}</body>
     </html>
   );

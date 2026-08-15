@@ -30,21 +30,25 @@ export default async function Portal() {
 
   return (
     <>
-      <header className="contenedor" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Simbolo size={30} />
-          <Wordmark />
-        </Link>
-        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          <span className={perfil.estado_verificacion === "verificado" ? "chip ok" : "chip"}>
-            {perfil.estado_verificacion === "verificado" ? "✓ Verificado" : "Pendiente de verificación"}
-          </span>
-          <Salir />
+      <header className="cabecera">
+        <div className="cabecera-fila">
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+            <Simbolo size={28} />
+            <Wordmark />
+          </Link>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <span className={perfil.estado_verificacion === "verificado" ? "chip ok" : "chip"}>
+              {perfil.estado_verificacion === "verificado" ? "✓ Verificado" : "Pendiente de verificación"}
+            </span>
+            <Salir />
+          </div>
         </div>
       </header>
+      <div style={{ height: 64 }} />
 
-      <main className="contenedor" style={{ paddingBottom: 60 }}>
-        <h1 style={{ fontSize: "1.6rem", margin: "6px 0 4px" }}>Hola, {perfil.nombre.split(" ")[0]}</h1>
+      <main className="contenedor" style={{ padding: "28px 24px 72px" }}>
+        <span className="kicker" style={{ color: "var(--aguacero)" }}>Portal de profesionales</span>
+        <h1 style={{ fontSize: "clamp(1.5rem, 3.5vw, 2rem)", margin: "10px 0 4px" }}>Hola, {perfil.nombre.split(" ")[0]}</h1>
 
         {!activo && (
           <p className="tarjeta" style={{ padding: 16, margin: "12px 0", borderColor: "var(--warn-texto)" }}>
@@ -81,7 +85,7 @@ function Tabla({ casos, uid }: { casos: any[]; uid: string }) {
       <div className="tarjeta" style={{ padding: 24, textAlign: "center" }}>
         {/* Estado vacío: la casita del mundo de papel */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/casita.jpg" alt="" width={120} style={{ margin: "0 auto 8px", borderRadius: 8 }} />
+        <img src="/casita.webp" alt="" width={120} style={{ margin: "0 auto 8px", borderRadius: 10 }} />
         <p style={{ color: "#6B655C" }}>No hay casos aquí por ahora.</p>
       </div>
     );
