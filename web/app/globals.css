@@ -511,3 +511,36 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
   html { scroll-behavior: auto; }
   .revela { opacity: 1; transform: none; }
 }
+
+/* ---- El registro como lista (/casos) ---- */
+.registro-controles {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  margin: 22px 0 16px; padding: 14px 16px;
+  background: var(--bruma); border-radius: 12px;
+}
+.registro-filtros { display: flex; flex-wrap: wrap; gap: 6px; }
+.registro-lista {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.registro-fila {
+  display: grid;
+  grid-template-columns: 130px 1.3fr 1fr 1fr 24px;
+  gap: 14px; align-items: center;
+  background: #fff; border: 1px solid #E4DCCB; border-radius: 10px;
+  box-shadow: var(--sombra-papel);
+  padding: 14px 18px; text-decoration: none; color: var(--grafito);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.registro-fila:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 rgba(31, 58, 95, 0.16);
+}
+.registro-celda-codigo { display: flex; flex-direction: column; gap: 2px; }
+.registro-celda-lugar { display: flex; flex-direction: column; gap: 2px; font-size: .9rem; }
+.registro-celda-chips, .registro-celda-necesidades { display: flex; flex-wrap: wrap; gap: 6px; }
+.registro-flecha { color: var(--aguacero); font-weight: 700; }
+@media (max-width: 760px) {
+  .registro-fila { grid-template-columns: 1fr 24px; }
+  .registro-celda-lugar { order: -1; }
+  .registro-flecha { grid-row: 1; grid-column: 2; }
+}

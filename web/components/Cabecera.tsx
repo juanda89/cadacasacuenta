@@ -21,6 +21,9 @@ export function Cabecera({ conMapa = false }: { conMapa?: boolean }) {
               El mapa
             </a>
           )}
+          <Link href="/casos" className="oculta-movil">
+            El registro
+          </Link>
           <Link href="/profesionales" className="oculta-movil">
             Soy profesional
           </Link>

@@ -76,11 +76,21 @@ function svgMarcador(dictamen: string | null, urgente: boolean) {
   </svg>`;
 }
 
-// Estilo 100% local: Colombia recortada en papel sobre agua de acuarela.
+// Estilo local (Colombia en papel) + calles de OpenStreetMap que aparecen al
+// acercarse: de lejos, el diorama; de cerca, calles y referencias para ubicarse.
 const ESTILO_PAPEL: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
     colombia: { type: "geojson", data: "/colombia.json" },
+    calles: {
+      type: "raster",
+      tiles: ["a", "b", "c", "d"].map(
+        (s) => `https://${s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png`
+      ),
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: "© OpenStreetMap contributors · © CARTO",
+    },
   },
   layers: [
     { id: "agua", type: "background", paint: { "background-color": "#D3E0EC" } },
@@ -111,6 +121,17 @@ const ESTILO_PAPEL: maplibregl.StyleSpecification = {
       filter: ["==", ["get", "codigo"], "27"],
       paint: { "line-color": "rgba(31,58,95,0.55)", "line-width": 1.8 },
     },
+    // Calles y referencias: invisibles de lejos, nítidas al acercarse (el papel
+    // le cede el sitio al plano urbano justo cuando hace falta ubicarse)
+    {
+      id: "calles",
+      type: "raster",
+      source: "calles",
+      paint: {
+        "raster-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 12.5, 1],
+        "raster-saturation": -0.25,
+      },
+    },
   ],
 };
 
@@ -122,7 +143,7 @@ function crearMapa(contenedor: HTMLDivElement) {
     fitBoundsOptions: { padding: 28 },
     maxBounds: LIMITES_MAXIMOS,
     minZoom: 4.2,
-    maxZoom: 15,
+    maxZoom: 18, // con calles OSM el zoom de barrio sí sirve para ubicarse
     attributionControl: false,
     // zoom directo con el scroll: pedido explícito (sin Ctrl/⌘)
   });
@@ -306,10 +327,6 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
   const total = puntos.length;
   const lista = ordenar(visibles).slice(0, 40);
 
-  const volar = (p: PuntoMapa) => {
-    mapRef.current?.easeTo({ center: [p.lng, p.lat], zoom: Math.max(mapRef.current.getZoom(), 11.5), duration: 640 });
-    setActivo(p.codigo_publico);
-  };
 
   if (sinWebgl) {
     return (
@@ -400,7 +417,10 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
               id={`tarjeta-${p.codigo_publico}`}
               href={`/caso/${p.codigo_publico}`}
               className={`tarjeta-caso ${activo === p.codigo_publico ? "activa" : ""}`}
-              onMouseEnter={() => volar(p)}
+              // El mapa manda sobre la lista, nunca al revés: el hover solo
+              // resalta la tarjeta, jamás mueve el mapa.
+              onMouseEnter={() => setActivo(p.codigo_publico)}
+              onMouseLeave={() => setActivo(null)}
             >
               <div className="tarjeta-caso-foto">
                 {p.fotoUrl ? (

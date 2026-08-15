@@ -89,9 +89,9 @@ export async function procesarMensaje(m: MensajeEntrante) {
 
   if (m.tipo === "text") {
     textoUsuario = m.texto ?? "";
-    // Alternativa de ubicación (informe 4.9): coordenadas o enlace de Google
-    // Maps pegados en el chat, para quien no encuentra la función nativa.
-    const coords = extraeCoordenadas(textoUsuario);
+    // Ubicación por texto: coordenadas pegadas o enlace de Google Maps
+    // (incluidos los cortos maps.app.goo.gl, que se resuelven por redirect).
+    const coords = await resolverCoordenadas(textoUsuario);
     if (coords && conv.caso_id) {
       await db
         .from("casos")
@@ -320,7 +320,7 @@ ${JSON.stringify({ ...caso, id: undefined }, null, 1)}
 NECESIDADES REGISTRADAS: ${JSON.stringify(necesidades ?? [])}
 
 REQUISITOS MÍNIMOS — sin los tres, el caso NO queda registrado (el sistema lo rechaza):
-a. UBICACIÓN. Pídela así: "toca el botón de adjuntar junto al mensaje (el + o el clip, según tu teléfono), elige Ubicación y luego Enviar mi ubicación actual". Si no la encuentra, ofrece la alternativa: "abre Google Maps, mantén presionado el punto donde queda, copia las coordenadas o el enlace y pégalo aquí — yo lo entiendo". La dirección escrita ayuda pero NO reemplaza la ubicación: insiste con paciencia y calidez.
+a. UBICACIÓN. JAMÁS uses la palabra "pin". Pídela siempre explícita con las DOS opciones: "compárteme la ubicación: por WhatsApp, tocando el botón de adjuntar junto al mensaje (el + o el clip, según tu teléfono) → Ubicación → Enviar mi ubicación actual; o si te queda más fácil, mándame el enlace de ubicación de Google Maps (compartir → copiar enlace) y yo lo entiendo". También entiendo coordenadas pegadas. La dirección escrita ayuda pero NO reemplaza la ubicación: insiste con paciencia y calidez.
 b. Al menos UNA FOTO del daño o del lugar (o nota de voz contando lo ocurrido, que también queda como evidencia).
 c. La DESCRIPCIÓN de qué pasó, en palabras de la persona.
 
@@ -330,7 +330,7 @@ Datos que importan (pregunta SOLO lo que falte, en orden de conversación natura
 1. Los tres mínimos de arriba, siempre primero
 2. ¿Qué tipo de edificación se afectó? tipo_inmueble (casa|apartamento|edificio|local_comercial|institucional|otro) — no asumas que es una casa familiar
 3. direccion, unidad si aplica, municipio_nombre + barrio
-4. ¿tiene_dano_estructural? ¿sin_vivienda? (¿dónde están durmiendo?)
+4. ¿tiene_dano_estructural? — escucha el relato SIN ASUMIR nada: si el daño que describen suena leve (fisuras, un muro agrietado, tejas corridas), NO preguntes dónde están durmiendo. SOLO si describen daño grave (colapso, "quedó en el piso", no pueden entrar, se los prohibieron) pregunta con tacto: "¿y en este momento dónde están pasando la noche?". Marca sin_vivienda ÚNICAMENTE si ellos dicen que no pueden habitar el lugar.
 5. relacion_vivienda (propietario|arrendatario|poseedor|familiar|vecino|lider_comunitario|otro), habitabilidad_percibida (si|no|no_sabe) — SIEMPRE con la aclaración de percepción
 6. OBLIGATORIO antes de cerrar: num_habitantes = cuántas personas viven o trabajan allí (+ num_menores, num_adultos_mayores, hay_discapacidad). Si no lo han dicho, pregúntalo explícitamente — sin este dato el caso no se cierra.
 7. necesidades: albergue|agua|alimentos|salud|medicamentos|psicosocial|proteccion|otra (con urgente true/false)
@@ -408,7 +408,7 @@ RESPONDE SOLO ESTE JSON:
         const faltantes: string[] = [];
         if (!chequeo.tiene_ubicacion)
           faltantes.push(
-            "tu ubicación: toca el botón de adjuntar (el + o el clip, según tu teléfono) → Ubicación → Enviar mi ubicación actual — o pega las coordenadas o el enlace de Google Maps"
+            "la ubicación: compártela por WhatsApp (botón de adjuntar → Ubicación → Enviar mi ubicación actual) o mándame el enlace de Google Maps"
           );
         if (!chequeo.tiene_evidencia) faltantes.push("una foto del daño (o una nota de voz contando lo que pasó)");
         if (!chequeo.tiene_descripcion) faltantes.push("que me cuentes qué pasó");
@@ -449,14 +449,15 @@ RESPONDE SOLO ESTE JSON:
 }
 
 /**
- * Extrae coordenadas de un texto: enlaces de Google Maps (@lat,lng · q=lat,lng)
- * o un par "lat, lng" pegado tal cual. Validadas contra los límites de Colombia
- * para no confundir cifras cualquiera con una ubicación.
+ * Extrae coordenadas de un texto: enlaces de Google Maps (@lat,lng · q=lat,lng ·
+ * el blob !3d…!4d… de los enlaces largos) o un par "lat, lng" pegado tal cual.
+ * Validadas contra los límites de Colombia para no confundir cifras cualquiera.
  */
 export function extraeCoordenadas(texto: string): { lat: number; lng: number } | null {
   const patrones = [
     /@(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/,        // maps .../@4.897,-76.234
     /[?&]q=(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/,   // maps ?q=4.897,-76.234
+    /!3d(-?\d{1,2}\.\d{3,})!4d(-?\d{1,3}\.\d{3,})/,       // blob de enlaces largos
     /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/,      // "4.897, -76.234" pegado
   ];
   for (const re of patrones) {
@@ -469,6 +470,31 @@ export function extraeCoordenadas(texto: string): { lat: number; lng: number } |
     }
   }
   return null;
+}
+
+/**
+ * Como extraeCoordenadas, pero además resuelve los enlaces CORTOS de compartir
+ * de Google Maps (maps.app.goo.gl / goo.gl/maps): sigue el redirect en el
+ * servidor y busca las coordenadas en la URL final.
+ */
+export async function resolverCoordenadas(texto: string): Promise<{ lat: number; lng: number } | null> {
+  const directo = extraeCoordenadas(texto);
+  if (directo) return directo;
+
+  const corto = texto.match(/https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[\w-]+/);
+  if (!corto) return null;
+  try {
+    const res = await fetch(corto[0], {
+      redirect: "follow",
+      signal: AbortSignal.timeout(6000),
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; CadaCasaCuenta/1.0)" },
+    });
+    // Las coordenadas viven en la URL final y a veces solo en el HTML
+    return extraeCoordenadas(res.url) ?? extraeCoordenadas((await res.text()).slice(0, 200_000));
+  } catch (e) {
+    console.error("resolverCoordenadas shortlink", e);
+    return null;
+  }
 }
 
 async function guardar(db: ReturnType<typeof supabaseAdmin>, conv: Conversacion) {

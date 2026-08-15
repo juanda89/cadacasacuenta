@@ -232,6 +232,23 @@ export default async function CasoPublico({ params }: { params: Promise<{ codigo
                 </a>
               </div>
             </Revela>
+            <Revela retraso={90}>
+              <div className="tarjeta" style={{ padding: "20px 22px", marginTop: 14 }}>
+                <h3 style={{ fontSize: ".98rem", marginBottom: 8 }}>Datos abiertos del caso</h3>
+                <p style={{ fontSize: ".85rem", color: "var(--arcilla)", lineHeight: 1.65, marginBottom: 12 }}>
+                  Descarga georreferenciada (anonimizada, ~110 m) con coordenadas WGS84 y
+                  MAGNA-SIRGAS Bogotá (EPSG:3116), lista para ArcGIS o QGIS.
+                </p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <a className="boton" style={{ padding: "8px 16px", fontSize: ".85rem" }} href={`/api/exporta/caso/${caso.codigo_publico}?formato=csv`}>
+                    ⬇ CSV
+                  </a>
+                  <a className="boton" style={{ padding: "8px 16px", fontSize: ".85rem", background: "var(--bruma)", color: "var(--tinta)", boxShadow: "var(--sombra-papel)" }} href={`/api/exporta/caso/${caso.codigo_publico}?formato=geojson`}>
+                    ⬇ GeoJSON
+                  </a>
+                </div>
+              </div>
+            </Revela>
           </aside>
         </div>
 
