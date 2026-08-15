@@ -339,7 +339,7 @@ Datos que importan (pregunta SOLO lo que falte, en orden de conversación natura
 6. OBLIGATORIO antes de cerrar: num_habitantes = cuántas personas viven o trabajan allí (+ num_menores, num_adultos_mayores, hay_discapacidad). Si no lo han dicho, pregúntalo explícitamente — sin este dato el caso no se cierra.
 7. necesidades: albergue|agua|alimentos|salud|medicamentos|psicosocial|proteccion|otra (con urgente true/false)
 8. nombre de contacto
-9. es_colectivo + num_familias si reporta por una comunidad
+9. es_colectivo si reporta por una comunidad — y en ese caso num_habitantes es el TOTAL de personas afectadas de la comunidad. NO preguntes cuántas familias son (si lo mencionan espontáneamente, guárdalo en num_familias): la cifra que SIEMPRE se pide es personas.
 
 RESPONDE SOLO ESTE JSON:
 {

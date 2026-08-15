@@ -16,8 +16,10 @@ export function Cabecera({ conMapa = false }: { conMapa?: boolean }) {
           <img src="/ilustraciones/logo-papel.webp" alt="Cada Casa Cuenta" className="logo-cabecera" />
         </Link>
         <nav>
+          {/* Ruta absoluta: desde cualquier página lleva a la portada y baja
+              al mapa; en la portada se comporta como el ancla de siempre. */}
           {conMapa && (
-            <a href="#mapa" className="oculta-movil">
+            <a href="/#mapa" className="oculta-movil">
               El mapa
             </a>
           )}

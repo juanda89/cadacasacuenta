@@ -215,7 +215,7 @@ export default async function CasoPublico({ params }: { params: Promise<{ codigo
                 <p style={{ fontSize: ".85rem", color: "var(--arcilla)", lineHeight: 1.65 }}>
                   {caso.dictamen
                     ? "El concepto de habitabilidad fue emitido por un profesional voluntario acreditado a partir de la evidencia y/o visita del caso. Es orientativo para la familia y las autoridades."
-                    : "Un ingeniero o arquitecto voluntario revisará la evidencia de este caso y emitirá el concepto de habitabilidad: el sello que dice si la edificación es segura."}
+                    : "Un ingeniero o arquitecto voluntario revisará la evidencia de este caso y brindará acompañamiento técnico: un concepto preliminar serio, que se confirma en terreno junto con las autoridades."}
                 </p>
               </div>
             </Revela>

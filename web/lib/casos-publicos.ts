@@ -27,7 +27,7 @@ export async function casosPublicos(): Promise<{
   const { data } = await anon()
     .from("caso_publico")
     .select(
-      "codigo_publico, lat, lng, estado, dictamen, municipio_nombre, departamento_nombre, barrio, sin_vivienda, es_colectivo, num_familias, necesidades_abiertas, necesidades_tipos, hay_necesidad_urgente, created_at"
+      "codigo_publico, lat, lng, estado, dictamen, municipio_nombre, departamento_nombre, barrio, sin_vivienda, es_colectivo, num_familias, num_personas, necesidades_abiertas, necesidades_tipos, hay_necesidad_urgente, created_at"
     )
     .order("created_at", { ascending: false })
     .limit(1000);

@@ -524,9 +524,16 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
 .registro-lista {
   display: flex; flex-direction: column; gap: 8px;
 }
+.registro-encabezado {
+  display: grid;
+  grid-template-columns: 130px 1.2fr 86px 1fr 1fr 24px;
+  gap: 14px; padding: 4px 18px 8px;
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 700; color: var(--arcilla);
+}
 .registro-fila {
   display: grid;
-  grid-template-columns: 130px 1.3fr 1fr 1fr 24px;
+  grid-template-columns: 130px 1.2fr 86px 1fr 1fr 24px;
   gap: 14px; align-items: center;
   background: #fff; border: 1px solid #E4DCCB; border-radius: 10px;
   box-shadow: var(--sombra-papel);
@@ -540,8 +547,10 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
 .registro-celda-codigo { display: flex; flex-direction: column; gap: 2px; }
 .registro-celda-lugar { display: flex; flex-direction: column; gap: 2px; font-size: .9rem; }
 .registro-celda-chips, .registro-celda-necesidades { display: flex; flex-wrap: wrap; gap: 6px; }
+.registro-celda-personas { display: flex; flex-direction: column; line-height: 1.25; }
 .registro-flecha { color: var(--aguacero); font-weight: 700; }
 @media (max-width: 760px) {
+  .registro-encabezado { display: none; }
   .registro-fila { grid-template-columns: 1fr 24px; }
   .registro-celda-lugar { order: -1; }
   .registro-flecha { grid-row: 1; grid-column: 2; }

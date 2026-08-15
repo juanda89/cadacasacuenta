@@ -113,6 +113,14 @@ export default function ListaRegistro({ casos }: { casos: (PuntoMapa & Record<st
         </div>
       ) : (
         <div className="registro-lista">
+          <div className="registro-encabezado" aria-hidden="true">
+            <span>Código · fecha</span>
+            <span>Lugar</span>
+            <span>Personas</span>
+            <span>Dictamen · señales</span>
+            <span>Necesidades</span>
+            <span />
+          </div>
           {visibles.map((c) => (
             <a key={c.codigo_publico} href={`/caso/${c.codigo_publico}`} className="registro-fila">
               <div className="registro-celda-codigo">
@@ -129,6 +137,12 @@ export default function ListaRegistro({ casos }: { casos: (PuntoMapa & Record<st
                   {[c.barrio, c.departamento_nombre].filter(Boolean).join(" · ")}
                   {c.lat == null && " · sin ubicación aún"}
                 </span>
+              </div>
+              <div className="registro-celda-personas" title="Personas afectadas">
+                <strong style={{ color: "var(--tinta)", fontVariantNumeric: "tabular-nums", fontSize: "1.05rem" }}>
+                  {c.num_personas ?? "—"}
+                </strong>
+                <span style={{ fontSize: ".7rem", color: "var(--arcilla)" }}>personas</span>
               </div>
               <div className="registro-celda-chips">
                 <span className={`chip ${c.dictamen === "habitable" ? "ok" : c.dictamen === "uso_restringido" ? "warn" : c.dictamen === "no_habitable" ? "bad" : "proceso"}`}>

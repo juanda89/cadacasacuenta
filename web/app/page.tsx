@@ -14,10 +14,10 @@ async function datosPublicos() {
   // Las tarjetas del mapa llevan la primera foto de evidencia, firmada en el
   // servidor (el bucket es privado; al navegador solo viajan URLs firmadas).
   const { puntos, todos } = await casosPublicos();
-  const familias = todos.reduce((s, p) => s + (p.num_familias || 1), 0);
+  const personas = todos.reduce((s, p) => s + (p.num_personas || 0), 0);
   const conDictamen = todos.filter((p) => p.dictamen).length;
   const sinVivienda = todos.filter((p) => p.sin_vivienda).reduce((s, p) => s + (p.num_familias || 1), 0);
-  return { puntos, todos, familias, conDictamen, sinVivienda };
+  return { puntos, todos, personas, conDictamen, sinVivienda };
 }
 
 const PASOS = [
@@ -42,7 +42,7 @@ const PASOS = [
 ];
 
 export default async function Home() {
-  const { puntos, todos, familias, conDictamen, sinVivienda } = await datosPublicos();
+  const { puntos, todos, personas, conDictamen, sinVivienda } = await datosPublicos();
 
   return (
     <>
@@ -151,7 +151,7 @@ export default async function Home() {
       <section className="contenedor" style={{ padding: "56px 24px 8px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
           {[
-            { n: familias, l: "familias y negocios registrados", d: "cada caso con código y evidencia" },
+            { n: personas, l: "personas afectadas", d: "la cifra que dimensiona la emergencia" },
             { n: puntos.length, l: "edificaciones en el mapa", d: "con ubicación verificable" },
             { n: conDictamen, l: "con concepto técnico", d: "acompañados por profesionales" },
             { n: sinVivienda, l: "familias sin vivienda", d: "la cifra que más urge" },

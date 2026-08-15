@@ -24,6 +24,7 @@ const COLUMNAS: [string, string][] = [
   ["dano_estructural", "tiene_dano_estructural"],
   ["sin_vivienda", "sin_vivienda"],
   ["colectivo", "es_colectivo"],
+  ["num_personas", "num_personas"],
   ["num_familias", "num_familias"],
   ["municipio", "municipio_nombre"],
   ["divipola", "municipio_divipola"],

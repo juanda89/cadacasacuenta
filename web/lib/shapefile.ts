@@ -29,6 +29,7 @@ const CAMPOS: CampoDbf[] = [
   { nombre: "dano_estr", tipo: "C", largo: 2, dec: 0, valor: (f) => si(f.tiene_dano_estructural) },
   { nombre: "sin_viv", tipo: "C", largo: 2, dec: 0, valor: (f) => si(f.sin_vivienda) },
   { nombre: "colectivo", tipo: "C", largo: 2, dec: 0, valor: (f) => si(f.es_colectivo) },
+  { nombre: "n_personas", tipo: "N", largo: 6, dec: 0, valor: (f) => num(f.num_personas, 0) },
   { nombre: "n_familias", tipo: "N", largo: 6, dec: 0, valor: (f) => num(f.num_familias, 0) },
   { nombre: "municipio", tipo: "C", largo: 30, dec: 0, valor: (f) => f.municipio_nombre ?? "" },
   { nombre: "divipola", tipo: "C", largo: 5, dec: 0, valor: (f) => f.municipio_divipola ?? "" },

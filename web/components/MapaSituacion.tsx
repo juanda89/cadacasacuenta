@@ -21,6 +21,7 @@ export type PuntoMapa = {
   sin_vivienda: boolean;
   es_colectivo: boolean;
   num_familias: number;
+  num_personas?: number | null;
   necesidades_abiertas: number;
   hay_necesidad_urgente: boolean;
   created_at?: string;
