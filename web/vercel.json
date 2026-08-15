@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/insights/generar", "schedule": "23 9 * * *" }
+  ]
+}

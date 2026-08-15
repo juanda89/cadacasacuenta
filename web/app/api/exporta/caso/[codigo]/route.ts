@@ -1,13 +1,27 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase/server";
+import { COOKIE_SEGUIMIENTO, verificaToken } from "@/lib/seguimiento";
 import { aCsv, aGeojson, filasPublicas, respuestaExporte } from "@/lib/exporta";
 import { aShapefileZip } from "@/lib/shapefile";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
-// Descarga georreferenciada de UN caso desde su URL pública:
-//   /api/exporta/caso/CCC-2026-0001?formato=csv|geojson
+// Descarga georreferenciada de UN caso: para la familia VERIFICADA por OTP
+// (cookie de seguimiento de ese caso) o para profesionales con sesión.
+//   /api/exporta/caso/CCC-2026-0001?formato=csv|geojson|shp
 export async function GET(req: NextRequest, ctx: { params: Promise<{ codigo: string }> }) {
   const { codigo } = await ctx.params;
+  const conCookie = verificaToken(req.cookies.get(COOKIE_SEGUIMIENTO)?.value, codigo);
+  if (!conCookie) {
+    const auth = await supabaseServer();
+    const { data: { user } } = await auth.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Verifique su caso con su número de WhatsApp (o ingrese como profesional) para descargarlo." },
+        { status: 401 }
+      );
+    }
+  }
   const formato = req.nextUrl.searchParams.get("formato") ?? "csv";
   const filas = await filasPublicas(codigo);
   if (filas.length === 0) return new Response("Caso no encontrado", { status: 404 });

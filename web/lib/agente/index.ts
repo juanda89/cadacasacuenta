@@ -434,7 +434,7 @@ RESPONDE SOLO ESTE JSON:
         mensaje =
           `${mensaje}\n---\n` +
           `Tu caso ya quedó registrado ✅ Tu código es *${c!.codigo_publico}*. ` +
-          `Guárdalo: este código es la prueba de que tu caso existe, y con él cualquiera puede verlo aquí:\n${url}\n---\n` +
+          `Guárdalo: es la prueba de que tu caso existe. Para hacerle seguimiento entra aquí y verifícate con este mismo número de WhatsApp (te llegará un código por este chat):\n${url}\n---\n` +
           `Un ingeniero o arquitecto voluntario va a revisar tu caso y acompañarte con asesoría técnica. ` +
           `Ten presente: este registro es evidencia ciudadana y no reemplaza el Registro Único de Damnificados (RUD) ni una inspección oficial de tu alcaldía.\n---\n` +
           `Si algo cambia (se mudan, consiguen albergue, empeora el daño) escríbeme y lo actualizamos. Aquí sigo.`;
