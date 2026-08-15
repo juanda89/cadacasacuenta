@@ -204,6 +204,7 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
 }
 .sala-mapa { position: relative; min-height: 560px; }
 .mapa-lienzo { position: absolute; inset: 0; }
+.sala-mapa > .mapa-lienzo { height: 100%; }
 
 .sala-casos {
   background: var(--papel);
@@ -350,9 +351,11 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
 .galeria-foto:hover { transform: translateY(-2px) rotate(-.4deg); box-shadow: var(--sombra-recorte); }
 .galeria-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* Zona aproximada del minimapa: la privacidad hecha visible */
-.zona-aproximada {
-  width: 92px; height: 92px; border-radius: 50%;
+/* Zona aproximada del minimapa: la privacidad hecha visible.
+   La animación vive en el hijo <i>: animar el marker pisaría su transform. */
+.zona-aproximada { width: 92px; height: 92px; }
+.zona-aproximada i {
+  display: block; width: 100%; height: 100%; border-radius: 50%;
   background: rgba(74, 123, 166, 0.16);
   border: 2px dashed rgba(31, 58, 95, 0.4);
   animation: respira 4s ease-in-out infinite;

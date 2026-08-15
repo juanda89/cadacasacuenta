@@ -189,6 +189,8 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
     );
     map.on("error", (e) => console.warn("mapa:", e.error?.message ?? e));
     mapRef.current = map;
+    // referencia para diagnóstico manual en consola
+    (window as unknown as Record<string, unknown>).__mapa = map;
 
     // Ciudades de referencia
     for (const c of CIUDADES) {
@@ -332,7 +334,13 @@ export default function MapaSituacion({ puntos }: { puntos: PuntoMapa[] }) {
     <div className="sala">
       {/* ---- El mapa, fundido con la página ---- */}
       <div className="sala-mapa">
-        <div ref={ref} className="mapa-lienzo" role="region" aria-label="Mapa de casos reportados en Colombia" />
+        {/* inline: la clase .maplibregl-map (position:relative) pisaría el absolute */}
+        <div
+          ref={ref}
+          style={{ position: "absolute", inset: 0 }}
+          role="region"
+          aria-label="Mapa de casos reportados en Colombia"
+        />
 
         <div className="panel-vidrio" style={{ position: "absolute", top: 16, left: 16, zIndex: 5, padding: "10px 16px" }}>
           <span className="pulso-vivo">

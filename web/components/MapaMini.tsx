@@ -53,9 +53,11 @@ export default function MapaMini({
       return;
     }
 
-    // Zona aproximada: un aro de papel que respira, no un punto exacto
+    // Zona aproximada: un aro de papel que respira, no un punto exacto.
+    // El aro animado es un HIJO: animar el marker pisaría su transform.
     const zona = document.createElement("div");
     zona.className = "zona-aproximada";
+    zona.innerHTML = "<i></i>";
     new maplibregl.Marker({ element: zona }).setLngLat([lng, lat]).addTo(map);
 
     const el = document.createElement("div");

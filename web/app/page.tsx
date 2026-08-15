@@ -68,14 +68,16 @@ export default async function Home() {
               "linear-gradient(180deg, rgba(31,58,95,.28) 0%, rgba(31,58,95,0) 26%, rgba(31,58,95,0) 42%, rgba(31,58,95,.86) 100%)",
           }}
         />
-        {/* El título de la casa: papel recortado flotando sobre el cielo del diorama */}
-        <div className="hero-logo flota" aria-hidden="true">
+        {/* El título de la casa: papel recortado flotando sobre el cielo del diorama.
+            La animación va en la IMG hija: animar el contenedor pisaría su translateX. */}
+        <div className="hero-logo" aria-hidden="true">
           <Image
             src="/ilustraciones/logo-papel.webp"
             alt="Cada Casa Cuenta"
             width={1100}
             height={343}
             priority
+            className="flota"
             style={{ width: "100%", height: "auto" }}
           />
         </div>
