@@ -15,7 +15,8 @@ export function Pie() {
             </span>
           </div>
           <p style={{ fontSize: ".9rem", opacity: 0.78, maxWidth: "34ch" }}>
-            Registro humanitario de vivienda y necesidades. Terremoto del Chocó, 2026.
+            Registro humanitario de edificaciones y necesidades. Terremoto de Colombia, 2026 —
+            Chocó, Caldas, Valle del Cauca, Risaralda y Quindío.
           </p>
           <p style={{ fontFamily: "var(--font-display)", fontStyle: "italic", marginTop: 14, fontSize: "1.05rem" }}>
             Ninguna familia sin contar.
@@ -43,7 +44,7 @@ export function Pie() {
           className="contenedor"
           style={{ padding: "14px 24px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: ".75rem", opacity: 0.6 }}
         >
-          <span>Hecho con cuidado para las familias del Chocó.</span>
+          <span>Hecho con cuidado para las familias y comunidades afectadas.</span>
           <span style={{ fontStyle: "italic" }}>Lo que no se cuenta, no se atiende.</span>
         </div>
       </div>

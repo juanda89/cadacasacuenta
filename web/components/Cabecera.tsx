@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Simbolo, Wordmark } from "./Logo";
+/* eslint-disable @next/next/no-img-element */
 
-const WA = `https://wa.me/${(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "+573137821926").replace("+", "")}`;
+const WA = `https://wa.me/${(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "+573137821926").replace("+", "")}?text=${encodeURIComponent("Hola, quiero reportar")}`;
 
 /**
  * Cabecera de vidrio compartida. Fija, translúcida (Apple por fuera,
@@ -12,9 +12,8 @@ export function Cabecera({ conMapa = false }: { conMapa?: boolean }) {
   return (
     <header className="cabecera">
       <div className="cabecera-fila">
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Simbolo size={28} />
-          <Wordmark />
+        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }} aria-label="Cada Casa Cuenta — inicio">
+          <img src="/ilustraciones/logo-papel.webp" alt="Cada Casa Cuenta" className="logo-cabecera" />
         </Link>
         <nav>
           {conMapa && (

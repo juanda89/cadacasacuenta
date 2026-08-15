@@ -192,8 +192,177 @@ th { text-align: left; font-size: 0.7rem; letter-spacing: 0.1em; text-transform:
 td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
 
 /* ------------------------------------------------------------
-   El mapa — sala de situación de papel
+   El mapa — sala de situación de papel, fundida con la página
    ------------------------------------------------------------ */
+.sala {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  width: 100%;
+  background: var(--lavado);
+  border-top: 1px solid var(--borde-papel);
+  border-bottom: 1px solid var(--borde-papel);
+}
+.sala-mapa { position: relative; min-height: 560px; }
+.mapa-lienzo { position: absolute; inset: 0; }
+
+.sala-casos {
+  background: var(--papel);
+  border-left: 1px solid var(--borde-papel);
+  display: flex;
+  flex-direction: column;
+  height: min(82vh, 780px);
+}
+.sala-casos-cabeza {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--borde-papel);
+  background: var(--papel-alto);
+}
+.sala-casos-lista {
+  overflow-y: auto;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lavado) transparent;
+}
+
+.tarjeta-caso {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 0;
+  text-decoration: none;
+  color: var(--grafito);
+  background: var(--papel-alto);
+  border: 1px solid var(--borde-papel);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--sombra-papel);
+  transition: transform var(--transicion), box-shadow var(--transicion), border-color var(--transicion);
+}
+.tarjeta-caso:hover, .tarjeta-caso.activa {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-recorte);
+  border-color: var(--aguacero);
+}
+.tarjeta-caso-foto {
+  position: relative;
+  height: 118px;
+  background: var(--bruma);
+}
+.tarjeta-caso-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tarjeta-caso-foto .chip { font-size: .68rem; padding: 3px 9px; box-shadow: 0 1px 0 rgba(31,58,95,.25); }
+.tarjeta-caso-cuerpo { padding: 12px 14px; min-width: 0; }
+.tarjeta-caso-lugar {
+  display: flex; align-items: center; gap: 5px;
+  font-size: .8rem; color: var(--arcilla); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.tag-mini {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .68rem; font-weight: 700;
+  background: var(--bruma); color: var(--tinta);
+  border-radius: 999px; padding: 2px 8px;
+}
+.tag-mini.urgente { background: var(--bad); color: #fff; }
+
+/* Racimos (clusters): papel de tinta con el número de casos */
+.racimo {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: #FBF7EF;
+  cursor: pointer;
+  border: 2px solid rgba(251,247,239,.85);
+  transition: transform 160ms ease;
+  line-height: 1;
+}
+.racimo:hover { transform: scale(1.07); }
+.racimo span { font-weight: 800; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+.racimo small { font-size: .58rem; letter-spacing: .12em; text-transform: uppercase; opacity: .85; margin-top: 2px; }
+.racimo.racimo-mini {
+  width: 26px; height: 26px; background: rgba(47,86,133,.94);
+  border-width: 1.5px; cursor: default; box-shadow: 0 1px 0 rgba(31,58,95,.3);
+}
+.racimo.racimo-mini span { font-size: .68rem; }
+.racimo.racimo-mini:hover { transform: none; }
+
+@media (max-width: 960px) {
+  .sala { grid-template-columns: 1fr; }
+  .sala-mapa { min-height: 62vh; }
+  .sala-casos { height: auto; border-left: none; border-top: 1px solid var(--borde-papel); }
+  .sala-casos-lista {
+    grid-auto-flow: column;
+    grid-auto-columns: 300px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 18px;
+  }
+}
+
+/* ------------------------------------------------------------
+   Detalle de caso
+   ------------------------------------------------------------ */
+.caso-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 34px;
+}
+@media (max-width: 880px) { .caso-grid { grid-template-columns: 1fr; } }
+
+.linea-estado {
+  display: flex; gap: 0; list-style: none; margin-top: 30px;
+  overflow-x: auto; padding-bottom: 4px;
+}
+.linea-estado li {
+  flex: 1; min-width: 92px; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--arcilla); text-align: center;
+}
+.linea-estado li i {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--papel-alto); border: 2px solid #c9c2b2;
+  box-shadow: 0 1px 0 rgba(31,58,95,.15);
+  z-index: 1;
+}
+.linea-estado li::before {
+  content: ""; position: absolute; top: 6px; left: -50%; right: 50%;
+  height: 2px; background: #d9d2c2;
+}
+.linea-estado li:first-child::before { display: none; }
+.linea-estado li.hecho { color: var(--tinta); }
+.linea-estado li.hecho i { background: var(--tinta); border-color: var(--tinta); }
+.linea-estado li.hecho::before { background: var(--tinta); }
+
+.galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+.galeria-foto {
+  display: block; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--borde-papel);
+  box-shadow: var(--sombra-papel);
+  aspect-ratio: 4 / 3; background: var(--bruma);
+  transition: transform var(--transicion), box-shadow var(--transicion);
+}
+.galeria-foto:hover { transform: translateY(-2px) rotate(-.4deg); box-shadow: var(--sombra-recorte); }
+.galeria-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Zona aproximada del minimapa: la privacidad hecha visible */
+.zona-aproximada {
+  width: 92px; height: 92px; border-radius: 50%;
+  background: rgba(74, 123, 166, 0.16);
+  border: 2px dashed rgba(31, 58, 95, 0.4);
+  animation: respira 4s ease-in-out infinite;
+}
+@keyframes respira {
+  0%, 100% { transform: scale(1); opacity: .85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+/* Compatibilidad: el marco con borde se sigue usando en vistas pequeñas (minimapa) */
 .mapa-marco {
   position: relative;
   border-radius: 18px;
@@ -319,6 +488,20 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
 
 /* Borde de papel rasgado entre secciones */
 .borde-rasgado { display: block; width: 100%; height: 26px; margin-top: -1px; }
+
+/* El logotipo de papel flotando sobre el cielo del hero */
+.hero-logo {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(44vw, 500px);
+  filter: drop-shadow(0 10px 26px rgba(31, 58, 95, 0.35));
+  pointer-events: none;
+}
+@media (max-width: 720px) { .hero-logo { width: 74vw; top: 11%; } }
+
+.logo-cabecera { height: 34px; width: auto; display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

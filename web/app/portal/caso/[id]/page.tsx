@@ -106,7 +106,15 @@ export default async function CasoPortal({ params }: { params: Promise<{ id: str
           <section className="tarjeta" style={{ padding: 20, margin: "16px 0", display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
             <Sello dictamen={ultima.dictamen as Dictamen} fecha={ultima.created_at} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div className="etiqueta">Dictamen vigente</div>
+              <div className="etiqueta">
+                {ultima.preliminar ? "Concepto PRELIMINAR — no visible al público" : "Dictamen vigente"}
+              </div>
+              {ultima.preliminar && (
+                <p style={{ fontSize: ".85rem", color: "var(--warn-texto)", fontWeight: 600 }}>
+                  Emitido por un profesional en verificación: se confirmará (y saldrá al mapa) cuando
+                  un administrador valide su matrícula.
+                </p>
+              )}
               <p style={{ fontSize: ".95rem" }}>{ultima.recomendacion ?? "Sin recomendación registrada"}</p>
               {ultima.observaciones && <p style={{ fontSize: ".85rem", color: "#6B655C" }}>{ultima.observaciones}</p>}
             </div>

@@ -1,29 +1,19 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
-import MapaSituacion, { type PuntoMapa } from "@/components/MapaSituacion";
+import MapaSituacion from "@/components/MapaSituacion";
 import { Cabecera, WHATSAPP_URL } from "@/components/Cabecera";
 import { Pie } from "@/components/Pie";
 import { Revela, Contador } from "@/components/Revela";
+import { casosPublicos } from "@/lib/casos-publicos";
 
 export const revalidate = 60; // el mapa público se refresca cada minuto
 
 async function datosPublicos() {
-  // Vista pública anonimizada: seguro con anon key, sin sesión.
-  const db = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   // caso_publico incluye también los reportes sin ubicación (p. ej. descritos
   // por texto): las cifras deben contarlos aunque el mapa no pueda dibujarlos.
-  const { data } = await db
-    .from("caso_publico")
-    .select(
-      "codigo_publico, lat, lng, estado, dictamen, municipio_nombre, sin_vivienda, es_colectivo, num_familias, necesidades_abiertas, hay_necesidad_urgente"
-    )
-    .limit(1000);
-  const todos = (data ?? []) as PuntoMapa[];
-  const puntos = todos.filter((p) => p.lat != null);
+  // Las tarjetas del mapa llevan la primera foto de evidencia, firmada en el
+  // servidor (el bucket es privado; al navegador solo viajan URLs firmadas).
+  const { puntos, todos } = await casosPublicos();
   const familias = todos.reduce((s, p) => s + (p.num_familias || 1), 0);
   const conDictamen = todos.filter((p) => p.dictamen).length;
   const sinVivienda = todos.filter((p) => p.sin_vivienda).reduce((s, p) => s + (p.num_familias || 1), 0);
@@ -34,14 +24,14 @@ const PASOS = [
   {
     img: "/ilustraciones/paso-reportar.webp",
     n: "01",
-    t: "La familia cuenta",
-    d: "Un mensaje de WhatsApp basta: texto, notas de voz, fotos y el pin de ubicación. Con su autorización, el caso queda registrado con código único y evidencia que nadie puede borrar.",
+    t: "La gente cuenta",
+    d: "Un mensaje de WhatsApp basta: texto, notas de voz, fotos y el pin de ubicación. Su casa, su edificio, su local o la sede de su comunidad — con su autorización, el caso queda registrado con código único y evidencia que nadie puede borrar.",
   },
   {
     img: "/ilustraciones/paso-visita.webp",
     n: "02",
-    t: "Un profesional visita",
-    d: "Ingenieros y arquitectos voluntarios toman los casos de su zona, caminan hasta la puerta y emiten el dictamen de habitabilidad: el sello que dice si esa casa es segura.",
+    t: "Un profesional acompaña",
+    d: "Ingenieros y arquitectos voluntarios — estén donde estén — revisan la evidencia de cada caso y brindan acompañamiento y asesoría técnica: un concepto preliminar serio, que se confirma en terreno junto con las autoridades.",
   },
   {
     img: "/ilustraciones/paso-mapa.webp",
@@ -78,6 +68,17 @@ export default async function Home() {
               "linear-gradient(180deg, rgba(31,58,95,.28) 0%, rgba(31,58,95,0) 26%, rgba(31,58,95,0) 42%, rgba(31,58,95,.86) 100%)",
           }}
         />
+        {/* El título de la casa: papel recortado flotando sobre el cielo del diorama */}
+        <div className="hero-logo flota" aria-hidden="true">
+          <Image
+            src="/ilustraciones/logo-papel.webp"
+            alt="Cada Casa Cuenta"
+            width={1100}
+            height={343}
+            priority
+            style={{ width: "100%", height: "auto" }}
+          />
+        </div>
         <div
           className="contenedor hero-entra"
           style={{
@@ -91,7 +92,7 @@ export default async function Home() {
           }}
         >
           <span className="kicker" style={{ color: "rgba(251,247,239,.85)" }}>
-            Terremoto del Chocó · 2026
+            Terremoto de Colombia · 2026
           </span>
           <h1
             style={{
@@ -105,8 +106,9 @@ export default async function Home() {
             Ninguna familia sin contar.
           </h1>
           <p style={{ maxWidth: "54ch", marginTop: 16, fontSize: "1.12rem", lineHeight: 1.65, color: "rgba(251,247,239,.92)" }}>
-            Tras el terremoto no existía un censo de las familias afectadas. Este es el registro que se
-            construye casa por casa, voz por voz — por WhatsApp, con evidencia, a la vista del país.
+            Tras el terremoto no existía un censo de lo afectado. Este es el registro que se construye
+            voz por voz — casas, edificios, locales y sedes comunitarias — por WhatsApp, con evidencia,
+            a la vista del país.
           </p>
           <div style={{ marginTop: 26, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
             <a className="boton" href={WHATSAPP_URL} style={{ background: "#FBF7EF", color: "var(--tinta)" }}>
@@ -147,9 +149,9 @@ export default async function Home() {
       <section className="contenedor" style={{ padding: "56px 24px 8px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
           {[
-            { n: familias, l: "familias registradas", d: "cada una con código y evidencia" },
-            { n: puntos.length, l: "hogares en el mapa", d: "con ubicación verificable" },
-            { n: conDictamen, l: "con dictamen técnico", d: "visitados por profesionales" },
+            { n: familias, l: "familias y negocios registrados", d: "cada caso con código y evidencia" },
+            { n: puntos.length, l: "edificaciones en el mapa", d: "con ubicación verificable" },
+            { n: conDictamen, l: "con concepto técnico", d: "acompañados por profesionales" },
             { n: sinVivienda, l: "familias sin vivienda", d: "la cifra que más urge" },
           ].map((s, i) => (
             <Revela key={s.l} retraso={i * 110}>
@@ -174,21 +176,22 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ============ La sala de situación ============ */}
-      <section id="mapa" className="contenedor" style={{ padding: "64px 24px 30px", scrollMarginTop: 72 }}>
-        <Revela>
-          <span className="kicker" style={{ color: "var(--aguacero)" }}>La sala de situación</span>
-          <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.6rem)", marginTop: 12, maxWidth: "22ch" }}>
-            El mapa que el país no tenía.
-          </h2>
-          <p style={{ maxWidth: "58ch", color: "var(--arcilla)", margin: "14px 0 26px", fontSize: "1.02rem" }}>
-            Colombia, recortada en papel. Cada marcador lleva el techo de tinta y un punto con el color del
-            dictamen — verde, ámbar o rojo — y el epicentro respira donde empezó todo, en San José del Palmar.
-          </p>
-        </Revela>
-        <Revela retraso={140}>
-          <MapaSituacion puntos={puntos} />
-        </Revela>
+      {/* ============ La sala de situación (full-bleed) ============ */}
+      <section id="mapa" style={{ scrollMarginTop: 64, paddingTop: 64 }}>
+        <div className="contenedor">
+          <Revela>
+            <span className="kicker" style={{ color: "var(--aguacero)" }}>La sala de situación</span>
+            <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.6rem)", marginTop: 12, maxWidth: "22ch" }}>
+              El mapa que el país no tenía.
+            </h2>
+            <p style={{ maxWidth: "58ch", color: "var(--arcilla)", margin: "14px 0 26px", fontSize: "1.02rem" }}>
+              Colombia, recortada en papel. Los casos se agrupan en racimos con su cuenta; acérquese y se
+              dividen hasta llegar a cada hogar, con el punto del dictamen — verde, ámbar o rojo. El epicentro
+              respira donde empezó todo, en San José del Palmar.
+            </p>
+          </Revela>
+        </div>
+        <MapaSituacion puntos={puntos} />
       </section>
 
       {/* ============ Cómo funciona: tres láminas de papel ============ */}

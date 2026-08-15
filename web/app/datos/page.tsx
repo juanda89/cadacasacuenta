@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const SECCIONES = [
   {
     t: "1. Quién trata sus datos",
-    c: "Cada Casa Cuenta, el registro humanitario de vivienda y necesidades del terremoto del Chocó (2026). Contacto: el número oficial de WhatsApp que aparece al pie de esta página.",
+    c: "Cada Casa Cuenta, el registro humanitario de vivienda y necesidades del terremoto de Colombia (2026): Chocó, Caldas, Valle del Cauca, Risaralda y Quindío. Contacto: el número oficial de WhatsApp que aparece al pie de esta página.",
   },
   {
     t: "2. Qué datos se recogen",

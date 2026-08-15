@@ -40,8 +40,9 @@ type Conversacion = {
 
 const SALUDO =
   "Hola 🤝 soy el asistente de Cada Casa Cuenta. Lamento mucho lo que están viviendo.\n---\n" +
-  "Estoy aquí para que lo que le pasó a tu casa y lo que tu familia necesita quede " +
-  "registrado, con evidencia, donde las autoridades lo pueden ver.";
+  "Estoy aquí para que lo que pasó — con tu casa, tu edificio, tu local o la sede de tu " +
+  "comunidad — y lo que necesitan quede registrado, con evidencia, donde las autoridades " +
+  "lo pueden ver.";
 
 export async function procesarMensaje(m: MensajeEntrante) {
   const db = supabaseAdmin();
@@ -88,6 +89,16 @@ export async function procesarMensaje(m: MensajeEntrante) {
 
   if (m.tipo === "text") {
     textoUsuario = m.texto ?? "";
+    // Alternativa de ubicación (informe 4.9): coordenadas o enlace de Google
+    // Maps pegados en el chat, para quien no encuentra la función nativa.
+    const coords = extraeCoordenadas(textoUsuario);
+    if (coords && conv.caso_id) {
+      await db
+        .from("casos")
+        .update({ ubicacion: `SRID=4326;POINT(${coords.lng} ${coords.lat})`, ubicacion_por_texto: false })
+        .eq("id", conv.caso_id);
+      textoUsuario += `\n[Sistema: se detectaron coordenadas ${coords.lat}, ${coords.lng} en el mensaje y la ubicación ya quedó guardada]`;
+    }
   } else if (m.tipo === "location" && m.lat != null && m.lng != null) {
     textoUsuario = `[El usuario compartió su ubicación: ${m.lat}, ${m.lng}]`;
     if (conv.caso_id) {
@@ -210,7 +221,7 @@ export async function procesarMensaje(m: MensajeEntrante) {
       respuesta =
         "Listo, quedó registrada tu autorización 🤝\n---\n" +
         "Puedes escribirme o mandarme notas de voz, como te quede más fácil.\n---\n" +
-        "Para empezar: cuéntame qué pasó con tu casa, ¿y en qué municipio y barrio o vereda está?";
+        "Para empezar: cuéntame qué pasó. ¿Se afectó tu casa, un edificio, un local u otra edificación? ¿Y en qué municipio y barrio o vereda está?";
     } else if (acepta === false) {
       await db.from("consentimientos").insert({
         telefono: m.telefono,
@@ -295,30 +306,36 @@ async function turnoRecoleccion(
     .eq("caso_id", conv.caso_id!);
   const minimos = await minimosDe(db, conv.caso_id!);
 
-  const sistema = `Eres el asistente de WhatsApp de "Cada Casa Cuenta", el registro humanitario del terremoto del Chocó (Colombia, 2026).
+  const sistema = `Eres el asistente de WhatsApp de "Cada Casa Cuenta", el registro humanitario del terremoto de Colombia (10 de agosto de 2026 — Chocó, Caldas, Valle del Cauca, Risaralda y Quindío). Se registra CUALQUIER edificación afectada: casas, apartamentos, edificios, locales comerciales, sedes comunitarias o institucionales.
 
 ${ESTILO_PROMPT}
+
+REGLA DE ORO — JAMÁS DES OPINIÓN TÉCNICA (la más importante de todas):
+Tú NO eres ingeniero y NUNCA valoras la gravedad de un daño. PROHIBIDO decir que una grieta "es menos preocupante", "parece superficial", "suele ser grave" ni ninguna variante: una valoración optimista tuya podría dejar a alguien durmiendo en un lugar inseguro. Si te preguntan si algo es grave o si pueden quedarse, responde SIEMPRE una variante de: "Eso no te lo puedo decir yo: lo confirma el profesional que acompañe tu caso. Si sientes que el lugar es inseguro, no te quedes adentro." Solo haces preguntas sobre HECHOS observables (¿la grieta ha crecido?, ¿las puertas cierran bien?, ¿se escuchan crujidos?) SIN interpretar jamás qué significan. Y si hay peligro inminente (colapso en curso, olor a gas, cables caídos), primero: que se alejen y llamen a la línea de emergencia 123.
+
+CUANDO PREGUNTES si creen poder volver a dormir/usar el lugar, aclara SIEMPRE en la misma frase que es su percepción y no un dictamen: "esto queda registrado como lo que tú percibes — la revisión técnica la hace el profesional".
 
 ESTADO ACTUAL DEL CASO (código ${caso!.codigo_publico}):
 ${JSON.stringify({ ...caso, id: undefined }, null, 1)}
 NECESIDADES REGISTRADAS: ${JSON.stringify(necesidades ?? [])}
 
 REQUISITOS MÍNIMOS — sin los tres, el caso NO queda registrado (el sistema lo rechaza):
-a. UBICACIÓN por pin de WhatsApp (clip 📎 → Ubicación → Enviar mi ubicación actual). Explícalo así de concreto. La dirección escrita ayuda pero NO reemplaza el pin: insiste con paciencia y calidez hasta recibirlo.
+a. UBICACIÓN. Pídela así: "toca el botón de adjuntar junto al mensaje (el + o el clip, según tu teléfono), elige Ubicación y luego Enviar mi ubicación actual". Si no la encuentra, ofrece la alternativa: "abre Google Maps, mantén presionado el punto donde queda, copia las coordenadas o el enlace y pégalo aquí — yo lo entiendo". La dirección escrita ayuda pero NO reemplaza la ubicación: insiste con paciencia y calidez.
 b. Al menos UNA FOTO del daño o del lugar (o nota de voz contando lo ocurrido, que también queda como evidencia).
 c. La DESCRIPCIÓN de qué pasó, en palabras de la persona.
 
-MÍNIMOS DE ESTE CASO AHORA MISMO: ${JSON.stringify(minimos)} — persiga primero lo que esté en false.
+MÍNIMOS DE ESTE CASO AHORA MISMO: ${JSON.stringify(minimos)} — persigue primero lo que esté en false.
 
 Datos que importan (pregunta SOLO lo que falte, en orden de conversación natural, no de formulario):
 1. Los tres mínimos de arriba, siempre primero
-2. direccion, tipo_inmueble (casa|apartamento|edificio|otro), unidad si aplica, municipio_nombre + barrio
-3. ¿tiene_dano_estructural? ¿sin_vivienda? (¿dónde están durmiendo?)
-4. relacion_vivienda (propietario|arrendatario|poseedor|familiar|vecino|lider_comunitario|otro), habitabilidad_percibida (si|no|no_sabe)
-5. num_habitantes, num_menores, num_adultos_mayores, hay_discapacidad
-6. necesidades: albergue|agua|alimentos|salud|medicamentos|psicosocial|proteccion|otra (con urgente true/false)
-7. nombre de contacto
-8. es_colectivo + num_familias si reporta por una comunidad
+2. ¿Qué tipo de edificación se afectó? tipo_inmueble (casa|apartamento|edificio|local_comercial|institucional|otro) — no asumas que es una casa familiar
+3. direccion, unidad si aplica, municipio_nombre + barrio
+4. ¿tiene_dano_estructural? ¿sin_vivienda? (¿dónde están durmiendo?)
+5. relacion_vivienda (propietario|arrendatario|poseedor|familiar|vecino|lider_comunitario|otro), habitabilidad_percibida (si|no|no_sabe) — SIEMPRE con la aclaración de percepción
+6. OBLIGATORIO antes de cerrar: num_habitantes = cuántas personas viven o trabajan allí (+ num_menores, num_adultos_mayores, hay_discapacidad). Si no lo han dicho, pregúntalo explícitamente — sin este dato el caso no se cierra.
+7. necesidades: albergue|agua|alimentos|salud|medicamentos|psicosocial|proteccion|otra (con urgente true/false)
+8. nombre de contacto
+9. es_colectivo + num_familias si reporta por una comunidad
 
 RESPONDE SOLO ESTE JSON:
 {
@@ -326,7 +343,7 @@ RESPONDE SOLO ESTE JSON:
  "patch_caso": { /* SOLO campos de casos que este mensaje permita llenar, con los nombres exactos de arriba. {} si nada */ },
  "nombre_contacto": "si lo dijo, aquí; si no, null",
  "nuevas_necesidades": [ { "tipo": "...", "detalle": "...", "urgente": false } ],
- "caso_completo": false /* true SOLO cuando los tres mínimos estén cumplidos Y tenga habitantes y nombre */
+ "caso_completo": false /* true SOLO cuando los tres mínimos estén cumplidos Y tenga num_habitantes Y nombre */
 }`;
 
   const historialLlm = conv.historial.slice(-16).map((h) => ({ role: h.role, content: h.content }));
@@ -379,12 +396,23 @@ RESPONDE SOLO ESTE JSON:
       // El LLM propone el cierre, pero la BD decide: sin ubicación, evidencia
       // y relato el caso no sale de borrador (trigger tg_casos_exige_minimos).
       const chequeo = await minimosDe(db, conv.caso_id!);
-      if (!chequeo.cumple) {
+      // Personas afectadas: obligatorio antes de cerrar (informe 4.8) — la
+      // cifra que le importa a una alcaldía es de personas, no de paredes.
+      const { data: casoAhora } = await db
+        .from("casos")
+        .select("num_habitantes")
+        .eq("id", conv.caso_id!)
+        .single();
+      const faltaPersonas = casoAhora?.num_habitantes == null;
+      if (!chequeo.cumple || faltaPersonas) {
         const faltantes: string[] = [];
         if (!chequeo.tiene_ubicacion)
-          faltantes.push("el pin de tu ubicación (clip 📎 → Ubicación → Enviar mi ubicación actual)");
+          faltantes.push(
+            "tu ubicación: toca el botón de adjuntar (el + o el clip, según tu teléfono) → Ubicación → Enviar mi ubicación actual — o pega las coordenadas o el enlace de Google Maps"
+          );
         if (!chequeo.tiene_evidencia) faltantes.push("una foto del daño (o una nota de voz contando lo que pasó)");
-        if (!chequeo.tiene_descripcion) faltantes.push("que me cuentes qué pasó con tu casa");
+        if (!chequeo.tiene_descripcion) faltantes.push("que me cuentes qué pasó");
+        if (faltaPersonas) faltantes.push("cuántas personas viven o trabajan allí");
         mensaje =
           `Ya casi queda registrado tu caso 🙌\n---\nSolo me falta: ${faltantes.join(
             "; y "
@@ -403,7 +431,9 @@ RESPONDE SOLO ESTE JSON:
           `${mensaje}\n---\n` +
           `Tu caso ya quedó registrado ✅ Tu código es *${c!.codigo_publico}*. ` +
           `Guárdalo: este código es la prueba de que tu caso existe, y con él cualquiera puede verlo aquí:\n${url}\n---\n` +
-          `Un ingeniero o arquitecto voluntario va a revisar tu caso. Si algo cambia (se mudan, consiguen albergue, empeora el daño) escríbeme y lo actualizamos. Aquí sigo.`;
+          `Un ingeniero o arquitecto voluntario va a revisar tu caso y acompañarte con asesoría técnica. ` +
+          `Ten presente: este registro es evidencia ciudadana y no reemplaza el Registro Único de Damnificados (RUD) ni una inspección oficial de tu alcaldía.\n---\n` +
+          `Si algo cambia (se mudan, consiguen albergue, empeora el daño) escríbeme y lo actualizamos. Aquí sigo.`;
       }
     }
   } catch (e) {
@@ -416,6 +446,29 @@ RESPONDE SOLO ESTE JSON:
     { role: "assistant", content: mensaje },
   ];
   return mensaje;
+}
+
+/**
+ * Extrae coordenadas de un texto: enlaces de Google Maps (@lat,lng · q=lat,lng)
+ * o un par "lat, lng" pegado tal cual. Validadas contra los límites de Colombia
+ * para no confundir cifras cualquiera con una ubicación.
+ */
+export function extraeCoordenadas(texto: string): { lat: number; lng: number } | null {
+  const patrones = [
+    /@(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/,        // maps .../@4.897,-76.234
+    /[?&]q=(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/,   // maps ?q=4.897,-76.234
+    /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/,      // "4.897, -76.234" pegado
+  ];
+  for (const re of patrones) {
+    const m = texto.match(re);
+    if (m) {
+      const lat = parseFloat(m[1]);
+      const lng = parseFloat(m[2]);
+      // Colombia continental e insular
+      if (lat >= -4.5 && lat <= 13.6 && lng >= -82 && lng <= -66.8) return { lat, lng };
+    }
+  }
+  return null;
 }
 
 async function guardar(db: ReturnType<typeof supabaseAdmin>, conv: Conversacion) {

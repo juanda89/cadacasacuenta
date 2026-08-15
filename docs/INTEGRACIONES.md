@@ -26,6 +26,15 @@ El webhook escribe con `SUPABASE_SERVICE_ROLE_KEY` (bypasa RLS por diseño; es e
 - **Respaldo: `moonshotai/kimi-k3`** — se usa solo si Luna falla o para casos que requieran más razonamiento.
 - Las notas de voz se transcriben antes de llegar al modelo; la transcripción se guarda en `evidencias.transcripcion` y alimenta la descripción del caso.
 
+## Decisiones formalizadas (informe de revisión 2026-08-15)
+
+- **Agente conversacional libre en vez de WhatsApp Flow** (decisión consciente): acepta voz y lenguaje natural, se adapta a la persona. Su garantía de completitud no viene del formulario sino de la BD: el caso nace `borrador` y el trigger `tg_casos_exige_minimos` + el chequeo de personas afectadas impiden cerrarlo sin ubicación, evidencia, relato y número de personas. **Conversación a medias:** el caso queda en `borrador` (invisible al público), la conversación puede retomarse en cualquier momento con el mismo número; recordatorio proactivo pendiente de plantillas aprobadas por Meta (ventana >24 h).
+- **El bot jamás emite juicio técnico** (crítico 3.1): regla de oro en el prompt — solo hechos observables, todo juicio de gravedad se remite al profesional; ante peligro inminente remite al 123.
+- **Dictamen preliminar** (crítico 3.2): toda evaluación de un profesional no verificado nace `preliminar` (trigger), jamás sale en vistas públicas, y se promueve automáticamente —con bitácora— cuando un admin verifica la matrícula.
+- **Necesidades formalizado** (4.3): tabla `necesidades` con estados (`abierta`/`en_atencion`/`atendida`), flag `urgente`, RLS (profesional asignado y admin) y visible agregada en superficies públicas. Export a terceros (Cruz Roja/ONG): pendiente de definir con el usuario.
+- **Código `CCC-YYYY-NNNN` sin departamento** (decisión consciente): corto y dictable por teléfono; el departamento vive como dato del caso, no en el código.
+- **Cifras del home**: conectadas en vivo a `caso_publico` (revalidate 60 s), no son datos quemados.
+
 ## Despliegue
 
 Vercel con el dominio que asigne (`*.vercel.app`) por ahora. Cuando exista dominio propio hay que actualizar: la URL del webhook en Kapso, `site_url` en `supabase/config.toml` y las Redirect URLs de Auth en Supabase.

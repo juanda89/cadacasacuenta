@@ -135,6 +135,11 @@ export function FormEvaluacion({ casoId }: { casoId: string }) {
       <button className="boton" disabled={enviando} type="submit" style={{ justifySelf: "start" }}>
         {enviando ? "Registrando…" : "Estampar dictamen"}
       </button>
+      <p style={{ fontSize: ".78rem", color: "#6B655C", maxWidth: "56ch", margin: 0 }}>
+        Si su matrícula aún está en verificación, el dictamen queda como <strong>preliminar</strong>:
+        visible para el equipo, nunca en el mapa público, y se confirma automáticamente cuando un
+        administrador valide su matrícula.
+      </p>
     </form>
   );
 }
