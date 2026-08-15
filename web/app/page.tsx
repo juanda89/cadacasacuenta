@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import SalaConmutada from "@/components/SalaConmutada";
+import MapaSituacion from "@/components/MapaSituacion";
 import { Cabecera, WHATSAPP_URL } from "@/components/Cabecera";
 import { Pie } from "@/components/Pie";
 import { Revela, Contador } from "@/components/Revela";
@@ -193,7 +193,7 @@ export default async function Home() {
             </p>
           </Revela>
         </div>
-        <SalaConmutada puntos={puntos} todos={todos} />
+        <MapaSituacion puntos={puntos} />
       </section>
 
       {/* ============ Cómo funciona: tres láminas de papel ============ */}

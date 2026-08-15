@@ -1,14 +1,22 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase/server";
 import { aCsv, aGeojson, filasPublicas, respuestaExporte } from "@/lib/exporta";
 import { aShapefileZip } from "@/lib/shapefile";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
-// Registro completo anonimizado, listo para ArcGIS/QGIS:
-//   /api/exporta/casos?formato=csv      → XY en WGS84 y MAGNA-SIRGAS (EPSG:3116)
-//   /api/exporta/casos?formato=geojson  → puntos WGS84 con propiedades MAGNA
-//   /api/exporta/casos?formato=shp      → shapefile ZIP con geometría en EPSG:3116
+// Registro COMPLETO para ArcGIS/QGIS — SOLO con sesión (decisión 2026-08-15:
+// el dato en bloque no es público; el mapa anonimizado sí):
+//   /api/exporta/casos?formato=csv|geojson|shp
 export async function GET(req: NextRequest) {
+  const auth = await supabaseServer();
+  const { data: { user } } = await auth.auth.getUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: "El registro completo requiere sesión de profesional. Ingrese en /profesionales." },
+      { status: 401 }
+    );
+  }
   const formato = req.nextUrl.searchParams.get("formato") ?? "csv";
   const filas = await filasPublicas();
   const fecha = new Date().toISOString().slice(0, 10);

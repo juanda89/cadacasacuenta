@@ -49,6 +49,11 @@ export default async function Portal() {
       <main className="contenedor" style={{ padding: "28px 24px 72px" }}>
         <span className="kicker" style={{ color: "var(--aguacero)" }}>Portal de profesionales</span>
         <h1 style={{ fontSize: "clamp(1.5rem, 3.5vw, 2rem)", margin: "10px 0 4px" }}>Hola, {perfil.nombre.split(" ")[0]}</h1>
+        <p style={{ margin: "4px 0 8px" }}>
+          <Link href="/portal/registro" style={{ fontWeight: 700 }}>
+            ☰ Ver el registro completo (tabla, filtros y descargas GIS) →
+          </Link>
+        </p>
 
         {!activo && (
           <p className="tarjeta" style={{ padding: 16, margin: "12px 0", borderColor: "var(--warn-texto)" }}>
