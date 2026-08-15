@@ -45,25 +45,95 @@ const SALUDO =
   "comunidad — y lo que necesitan quede registrado, con evidencia, donde las autoridades " +
   "lo pueden ver.";
 
-export async function procesarMensaje(m: MensajeEntrante) {
-  const db = supabaseAdmin();
-  // "escribiendo..." mientras el agente piensa: el turno se siente humano
-  await indicarEscribiendo(m.messageId);
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  // --- Estado de la conversación (crea si no existe) ---
+/**
+ * Punto de entrada del webhook (fix de raíz de los mensajes repetidos):
+ * cada mensaje se ENCOLA con dedupe por message_id, y un único drenador por
+ * conversación (candado en BD con TTL) procesa la ráfaga completa y responde
+ * UNA sola vez. Sin esto, una ráfaga de 3 mensajes disparaba 3 invocaciones
+ * paralelas que se contestaban entre sí con globos duplicados.
+ */
+export async function encolarYDrenar(mensajes: MensajeEntrante[]) {
+  const db = supabaseAdmin();
+  const telefonos = new Set<string>();
+  for (const m of mensajes) {
+    const { error } = await db
+      .from("bot_entrantes")
+      .insert({ message_id: m.messageId, telefono: m.telefono, payload: m });
+    if (!error) telefonos.add(m.telefono);
+    else if (error.code !== "23505") console.error("encolar", error); // 23505 = reintento de Kapso
+  }
+  for (const tel of telefonos) {
+    await drenar(db, tel);
+  }
+}
+
+async function drenar(db: ReturnType<typeof supabaseAdmin>, telefono: string) {
+  let { data: tengo } = await db.rpc("bot_toma_candado", { p_tel: telefono, p_ttl_seg: 120 });
+  if (!tengo) {
+    // Otro drenador está activo: casi siempre verá nuestro mensaje. Reintento
+    // corto para cubrir el instante en que él termina de revisar la cola.
+    await espera(3500);
+    ({ data: tengo } = await db.rpc("bot_toma_candado", { p_tel: telefono, p_ttl_seg: 120 }));
+    if (!tengo) return;
+  }
+  try {
+    // Debounce: la gente escribe en ráfagas — esperamos a que termine
+    await espera(2500);
+    for (let ronda = 0; ronda < 10; ronda++) {
+      const { data: pendientes } = await db
+        .from("bot_entrantes")
+        .select("id, payload")
+        .eq("telefono", telefono)
+        .eq("estado", "pendiente")
+        .order("id")
+        .limit(20);
+      if (!pendientes || pendientes.length === 0) break;
+      const ids = pendientes.map((p) => p.id);
+      await db.from("bot_entrantes").update({ estado: "procesando" }).in("id", ids);
+      try {
+        await procesarRafaga(db, telefono, pendientes.map((p) => p.payload as MensajeEntrante));
+        await db.from("bot_entrantes").update({ estado: "hecho" }).in("id", ids);
+      } catch (e) {
+        console.error("rafaga", telefono, e);
+        await db.from("bot_entrantes").update({ estado: "error" }).in("id", ids);
+      }
+      await espera(800); // ¿llegó algo más mientras respondíamos?
+    }
+  } finally {
+    await db.rpc("bot_suelta_candado", { p_tel: telefono });
+  }
+}
+
+async function procesarRafaga(
+  db: ReturnType<typeof supabaseAdmin>,
+  telefono: string,
+  lote: MensajeEntrante[],
+  esReintento = false
+) {
+  const ultimo = lote[lote.length - 1];
+  // "escribiendo..." mientras el agente piensa: el turno se siente humano
+  await indicarEscribiendo(ultimo.messageId);
+
+  // --- Estado de la conversación (el candado garantiza acceso exclusivo) ---
   let conv: Conversacion;
   {
     const { data } = await db
       .from("bot_conversaciones")
       .select("*")
-      .eq("telefono", m.telefono)
+      .eq("telefono", telefono)
       .maybeSingle();
     if (data) {
       conv = data as Conversacion;
+      if (!conv.kapso_conversation_id && ultimo.conversationId) {
+        conv.kapso_conversation_id = ultimo.conversationId;
+      }
     } else {
+      // bot_toma_candado ya creó la fila; esto es solo un cinturón
       const nueva = {
-        telefono: m.telefono,
-        kapso_conversation_id: m.conversationId,
+        telefono,
+        kapso_conversation_id: ultimo.conversationId,
         fase: "nueva" as const,
         historial: [],
       };
@@ -72,85 +142,19 @@ export async function procesarMensaje(m: MensajeEntrante) {
     }
   }
 
-  // --- Idempotencia ATÓMICA: reintentos de Kapso e invocaciones paralelas
-  // compiten por un INSERT con PK; solo la primera procesa el mensaje. ---
-  {
-    const { error: claim } = await db
-      .from("bot_mensajes")
-      .insert({ message_id: m.messageId, telefono: m.telefono });
-    if (claim) {
-      if (claim.code !== "23505") console.error("claim mensaje", claim);
-      return; // duplicado (23505) o error: no reprocesar
-    }
-  }
-
-  // --- Normalizar la entrada a texto + efectos secundarios de media ---
+  // --- Toda la ráfaga se vuelve UN solo turno de usuario ---
   let textoUsuario = "";
   let esTranscripcion = false;
-
-  if (m.tipo === "text") {
-    textoUsuario = m.texto ?? "";
-    // Ubicación por texto: coordenadas pegadas o enlace de Google Maps
-    // (incluidos los cortos maps.app.goo.gl, que se resuelven por redirect).
-    const coords = await resolverCoordenadas(textoUsuario);
-    if (coords && conv.caso_id) {
-      await db
-        .from("casos")
-        .update({ ubicacion: `SRID=4326;POINT(${coords.lng} ${coords.lat})`, ubicacion_por_texto: false })
-        .eq("id", conv.caso_id);
-      await completaLugar(db, conv.caso_id, coords.lat, coords.lng);
-      textoUsuario += `\n[Sistema: se detectaron coordenadas ${coords.lat}, ${coords.lng} en el mensaje y la ubicación ya quedó guardada]`;
-    }
-  } else if (m.tipo === "location" && m.lat != null && m.lng != null) {
-    textoUsuario = `[El usuario compartió su ubicación: ${m.lat}, ${m.lng}]`;
-    if (conv.caso_id) {
-      await db
-        .from("casos")
-        .update({ ubicacion: `SRID=4326;POINT(${m.lng} ${m.lat})`, ubicacion_por_texto: false })
-        .eq("id", conv.caso_id);
-      // El barrio/municipio se completan solos desde la coordenada (Nominatim)
-      await completaLugar(db, conv.caso_id, m.lat, m.lng);
-    }
-  } else if ((m.tipo === "image" || m.tipo === "document") && m.mediaId) {
-    const bin = await descargarMedia(m.mediaId);
-    if (bin && conv.caso_id) {
-      const ext = m.mimeType?.split("/")[1]?.split(";")[0] ?? "jpg";
-      const path = `casos/${conv.caso_id}/${m.messageId}.${ext}`;
-      await db.storage.from("evidencias").upload(path, bin, { contentType: m.mimeType });
-      await db.from("evidencias").insert({
-        caso_id: conv.caso_id,
-        tipo: m.tipo === "image" ? "foto" : "documento",
-        storage_path: path,
-        mime_type: m.mimeType,
-        origen: "ciudadano",
-      });
-    }
-    textoUsuario = m.tipo === "image" ? "[El usuario envió una foto]" : "[El usuario envió un documento]";
-  } else if (m.tipo === "audio" && m.mediaId) {
-    const bin = await descargarMedia(m.mediaId);
-    if (bin) {
-      const t = await transcribe(bin, m.mimeType ?? "audio/ogg");
-      if (t) {
-        textoUsuario = t;
-        esTranscripcion = true;
-      }
-      if (conv.caso_id && bin) {
-        const path = `casos/${conv.caso_id}/${m.messageId}.ogg`;
-        await db.storage.from("evidencias").upload(path, bin, { contentType: m.mimeType ?? "audio/ogg" });
-        await db.from("evidencias").insert({
-          caso_id: conv.caso_id,
-          tipo: "audio",
-          storage_path: path,
-          mime_type: m.mimeType,
-          transcripcion: t,
-          origen: "ciudadano",
-        });
-      }
-    }
-    if (!textoUsuario) textoUsuario = "[Nota de voz que no se pudo transcribir]";
+  let botonId: string | null | undefined = null;
+  for (const m of lote) {
+    const r = await normalizaEntrada(db, conv, m);
+    if (r.texto.trim()) textoUsuario += (textoUsuario ? "\n" : "") + r.texto;
+    esTranscripcion = esTranscripcion || r.esTranscripcion;
+    if (m.botonId) botonId = m.botonId;
   }
-
-  if (!textoUsuario.trim()) textoUsuario = `[Mensaje de tipo ${m.tipo}]`;
+  if (!textoUsuario.trim()) {
+    textoUsuario = `[Mensajes de tipo: ${lote.map((m) => m.tipo).join(", ")}]`;
+  }
 
   // --- Máquina de fases ---
   let respuesta: string;
@@ -164,8 +168,8 @@ export async function procesarMensaje(m: MensajeEntrante) {
     ];
     await guardar(db, conv);
     // Saludo en globos + la autorización con botones Sí/No
-    await enviarGlobos(m.telefono, aGlobos(SALUDO));
-    await enviarBotones(m.telefono, ver.texto, [
+    await enviarGlobos(telefono, aGlobos(SALUDO));
+    await enviarBotones(telefono, ver.texto, [
       { id: "consent_si", titulo: "Sí, autorizo" },
       { id: "consent_no", titulo: "No" },
     ]);
@@ -174,8 +178,8 @@ export async function procesarMensaje(m: MensajeEntrante) {
     const ver = await versionConsentimiento(db);
     // Si tocó un botón, la respuesta es inequívoca; si escribió, decide el LLM.
     let acepta: boolean | null = null;
-    if (m.botonId === "consent_si") acepta = true;
-    else if (m.botonId === "consent_no") acepta = false;
+    if (botonId === "consent_si") acepta = true;
+    else if (botonId === "consent_no") acepta = false;
     else {
       const veredicto = await completa(
         [
@@ -204,21 +208,21 @@ export async function procesarMensaje(m: MensajeEntrante) {
           consentimiento_datos: true,
           consentimiento_at: ahora,
           consentimiento_version: ver.version,
-          kapso_conversation_id: m.conversationId,
-          origen_ref: `kapso:${m.messageId}`,
+          kapso_conversation_id: ultimo.conversationId,
+          origen_ref: `kapso:${ultimo.messageId}`,
         })
         .select("id, codigo_publico")
         .single();
-      await db.from("casos_contacto").insert({ caso_id: caso!.id, telefono: m.telefono });
+      await db.from("casos_contacto").insert({ caso_id: caso!.id, telefono });
       await db.from("consentimientos").insert({
         caso_id: caso!.id,
-        telefono: m.telefono,
+        telefono,
         version: ver.version,
         acepta: true,
         respuesta_literal: textoUsuario,
         respuesta_es_transcripcion: esTranscripcion,
-        kapso_message_id: m.messageId,
-        kapso_conversation_id: m.conversationId,
+        kapso_message_id: ultimo.messageId,
+        kapso_conversation_id: ultimo.conversationId,
       });
       conv.caso_id = caso!.id;
       conv.fase = "recolectando";
@@ -228,13 +232,13 @@ export async function procesarMensaje(m: MensajeEntrante) {
         "Para empezar: cuéntame qué pasó. ¿Se afectó tu casa, un edificio, un local u otra edificación? ¿Y en qué municipio y barrio o vereda está?";
     } else if (acepta === false) {
       await db.from("consentimientos").insert({
-        telefono: m.telefono,
+        telefono,
         version: ver.version,
         acepta: false,
         respuesta_literal: textoUsuario,
         respuesta_es_transcripcion: esTranscripcion,
-        kapso_message_id: m.messageId,
-        kapso_conversation_id: m.conversationId,
+        kapso_message_id: ultimo.messageId,
+        kapso_conversation_id: ultimo.conversationId,
       });
       conv.fase = "rechazado";
       respuesta =
@@ -253,20 +257,21 @@ export async function procesarMensaje(m: MensajeEntrante) {
       { role: "assistant", content: respuesta },
     ];
   } else if (conv.fase === "recolectando" && conv.caso_id) {
-    respuesta = await turnoRecoleccion(db, conv, textoUsuario, m.telefono);
+    respuesta = await turnoRecoleccion(db, conv, textoUsuario, telefono);
   } else if (conv.fase === "cerrado" && conv.caso_id) {
     // Reapertura: la familia puede actualizar su caso cuando quiera
     conv.fase = "recolectando";
-    respuesta = await turnoRecoleccion(db, conv, textoUsuario, m.telefono);
+    respuesta = await turnoRecoleccion(db, conv, textoUsuario, telefono);
   } else {
     // rechazado → si vuelve a escribir, se le ofrece de nuevo el consentimiento
     conv.fase = "nueva";
     await guardar(db, conv);
-    return procesarMensaje({ ...m, messageId: m.messageId + ":reintento" });
+    if (esReintento) return; // cinturón anti-bucle
+    return procesarRafaga(db, telefono, lote, true);
   }
 
   await guardar(db, conv);
-  await enviarGlobos(m.telefono, aGlobos(respuesta));
+  await enviarGlobos(telefono, aGlobos(respuesta));
 }
 
 // Última versión vigente del texto de autorización (Ley 1581 de 2012).
@@ -340,6 +345,8 @@ Datos que importan (pregunta SOLO lo que falte, en orden de conversación natura
 7. necesidades: albergue|agua|alimentos|salud|medicamentos|psicosocial|proteccion|otra (con urgente true/false)
 8. nombre de contacto
 9. es_colectivo si reporta por una comunidad — y en ese caso num_habitantes es el TOTAL de personas afectadas de la comunidad. NO preguntes cuántas familias son (si lo mencionan espontáneamente, guárdalo en num_familias): la cifra que SIEMPRE se pide es personas.
+
+NO TE REPITAS: revisa el historial reciente — si una explicación o instrucción ya se dio (cómo compartir la ubicación, que entiendes notas de voz, etc.), NO la repitas; reconoce lo nuevo que llegó y avanza al siguiente dato que falte.
 
 RESPONDE SOLO ESTE JSON:
 {
@@ -450,6 +457,82 @@ RESPONDE SOLO ESTE JSON:
     { role: "assistant", content: mensaje },
   ];
   return mensaje;
+}
+
+/** Un mensaje entrante → texto para el LLM + efectos secundarios (storage, ubicación). */
+async function normalizaEntrada(
+  db: ReturnType<typeof supabaseAdmin>,
+  conv: Conversacion,
+  m: MensajeEntrante
+): Promise<{ texto: string; esTranscripcion: boolean }> {
+  let texto = "";
+  let esTranscripcion = false;
+
+  if (m.tipo === "text") {
+    texto = m.texto ?? "";
+    // Ubicación por texto: coordenadas pegadas o enlace de Google Maps
+    // (incluidos los cortos maps.app.goo.gl, que se resuelven por redirect).
+    const coords = await resolverCoordenadas(texto);
+    if (coords && conv.caso_id) {
+      await db
+        .from("casos")
+        .update({ ubicacion: `SRID=4326;POINT(${coords.lng} ${coords.lat})`, ubicacion_por_texto: false })
+        .eq("id", conv.caso_id);
+      await completaLugar(db, conv.caso_id, coords.lat, coords.lng);
+      texto += `\n[Sistema: se detectaron coordenadas ${coords.lat}, ${coords.lng} en el mensaje y la ubicación ya quedó guardada]`;
+    }
+  } else if (m.tipo === "location" && m.lat != null && m.lng != null) {
+    texto = `[El usuario compartió su ubicación: ${m.lat}, ${m.lng}]`;
+    if (conv.caso_id) {
+      await db
+        .from("casos")
+        .update({ ubicacion: `SRID=4326;POINT(${m.lng} ${m.lat})`, ubicacion_por_texto: false })
+        .eq("id", conv.caso_id);
+      // El barrio/municipio se completan solos desde la coordenada (Nominatim)
+      await completaLugar(db, conv.caso_id, m.lat, m.lng);
+    }
+  } else if ((m.tipo === "image" || m.tipo === "document") && m.mediaId) {
+    const bin = await descargarMedia(m.mediaId);
+    if (bin && conv.caso_id) {
+      const ext = m.mimeType?.split("/")[1]?.split(";")[0] ?? "jpg";
+      const path = `casos/${conv.caso_id}/${m.messageId}.${ext}`;
+      await db.storage.from("evidencias").upload(path, bin, { contentType: m.mimeType });
+      await db.from("evidencias").insert({
+        caso_id: conv.caso_id,
+        tipo: m.tipo === "image" ? "foto" : "documento",
+        storage_path: path,
+        mime_type: m.mimeType,
+        origen: "ciudadano",
+      });
+    }
+    texto = m.tipo === "image" ? "[El usuario envió una foto]" : "[El usuario envió un documento]";
+  } else if (m.tipo === "audio" && m.mediaId) {
+    const bin = await descargarMedia(m.mediaId);
+    if (bin) {
+      const t = await transcribe(bin, m.mimeType ?? "audio/ogg");
+      if (t) {
+        texto = t;
+        esTranscripcion = true;
+      }
+      if (conv.caso_id) {
+        const path = `casos/${conv.caso_id}/${m.messageId}.ogg`;
+        await db.storage.from("evidencias").upload(path, bin, { contentType: m.mimeType ?? "audio/ogg" });
+        await db.from("evidencias").insert({
+          caso_id: conv.caso_id,
+          tipo: "audio",
+          storage_path: path,
+          mime_type: m.mimeType,
+          transcripcion: t,
+          origen: "ciudadano",
+        });
+      }
+    }
+    if (!texto) texto = "[Nota de voz que no se pudo transcribir]";
+  } else {
+    texto = `[Mensaje de tipo ${m.tipo}]`;
+  }
+
+  return { texto, esTranscripcion };
 }
 
 /**

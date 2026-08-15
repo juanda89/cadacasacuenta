@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "node:crypto";
-import { procesarMensaje, type MensajeEntrante } from "@/lib/agente";
+import { encolarYDrenar, type MensajeEntrante } from "@/lib/agente";
 
-export const maxDuration = 300; // el turno del agente (LLM + transcripción) corre tras el ACK
+export const maxDuration = 300; // el drenador (debounce + LLM + transcripción) corre tras el ACK
 
 /**
  * Webhook de Kapso.
- * Contrato: ACK 200 en <10s o Kapso reintenta (10/40/90s). Por eso este
- * handler solo valida la firma y encola; el agente corre en `after()`.
- * La idempotencia vive en el agente (mensajes_procesados) y en la BD
- * (origen_ref unique), así que un reintento nunca duplica un caso.
+ * Contrato: ACK 200 en <10s o Kapso reintenta (10/40/90s). Este handler solo
+ * valida la firma y encola; el agente corre en `after()` con serialización
+ * por conversación (bot_entrantes + candado): una ráfaga de mensajes produce
+ * UNA sola respuesta, y los reintentos chocan con el unique de message_id.
  */
 export async function POST(req: NextRequest) {
   const raw = await req.text();
@@ -37,12 +37,10 @@ export async function POST(req: NextRequest) {
 
   const mensajes = extraerMensajes(payload);
   after(async () => {
-    for (const m of mensajes) {
-      try {
-        await procesarMensaje(m);
-      } catch (e) {
-        console.error("agente fallo", m.messageId, e);
-      }
+    try {
+      await encolarYDrenar(mensajes);
+    } catch (e) {
+      console.error("agente fallo", e);
     }
   });
 
