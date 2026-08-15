@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import MapaSituacion from "@/components/MapaSituacion";
+import SalaConmutada from "@/components/SalaConmutada";
 import { Cabecera, WHATSAPP_URL } from "@/components/Cabecera";
 import { Pie } from "@/components/Pie";
 import { Revela, Contador } from "@/components/Revela";
@@ -17,7 +17,7 @@ async function datosPublicos() {
   const familias = todos.reduce((s, p) => s + (p.num_familias || 1), 0);
   const conDictamen = todos.filter((p) => p.dictamen).length;
   const sinVivienda = todos.filter((p) => p.sin_vivienda).reduce((s, p) => s + (p.num_familias || 1), 0);
-  return { puntos, familias, conDictamen, sinVivienda };
+  return { puntos, todos, familias, conDictamen, sinVivienda };
 }
 
 const PASOS = [
@@ -42,7 +42,7 @@ const PASOS = [
 ];
 
 export default async function Home() {
-  const { puntos, familias, conDictamen, sinVivienda } = await datosPublicos();
+  const { puntos, todos, familias, conDictamen, sinVivienda } = await datosPublicos();
 
   return (
     <>
@@ -193,7 +193,7 @@ export default async function Home() {
             </p>
           </Revela>
         </div>
-        <MapaSituacion puntos={puntos} />
+        <SalaConmutada puntos={puntos} todos={todos} />
       </section>
 
       {/* ============ Cómo funciona: tres láminas de papel ============ */}

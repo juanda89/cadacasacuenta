@@ -246,6 +246,9 @@ export default async function CasoPublico({ params }: { params: Promise<{ codigo
                   <a className="boton" style={{ padding: "8px 16px", fontSize: ".85rem", background: "var(--bruma)", color: "var(--tinta)", boxShadow: "var(--sombra-papel)" }} href={`/api/exporta/caso/${caso.codigo_publico}?formato=geojson`}>
                     ⬇ GeoJSON
                   </a>
+                  <a className="boton" style={{ padding: "8px 16px", fontSize: ".85rem", background: "var(--bruma)", color: "var(--tinta)", boxShadow: "var(--sombra-papel)" }} href={`/api/exporta/caso/${caso.codigo_publico}?formato=shp`} title="Shapefile en MAGNA-SIRGAS Bogotá (EPSG:3116)">
+                    ⬇ Shapefile
+                  </a>
                 </div>
               </div>
             </Revela>

@@ -93,6 +93,14 @@ export default function ListaRegistro({ casos }: { casos: (PuntoMapa & Record<st
           >
             ⬇ GeoJSON
           </a>
+          <a
+            className="boton"
+            style={{ padding: "8px 16px", fontSize: ".82rem", background: "var(--bruma)", color: "var(--tinta)", boxShadow: "var(--sombra-papel)" }}
+            href="/api/exporta/casos?formato=shp"
+            title="Shapefile con geometría en MAGNA-SIRGAS Bogotá (EPSG:3116)"
+          >
+            ⬇ Shapefile
+          </a>
         </div>
       </div>
 

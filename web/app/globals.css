@@ -202,7 +202,9 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
   border-top: 1px solid var(--borde-papel);
   border-bottom: 1px solid var(--borde-papel);
 }
-.sala-mapa { position: relative; min-height: 560px; }
+/* Alto suficiente para que Colombia (más alta que ancha) entre COMPLETA
+   con el fitBounds inicial, sin recortarse arriba ni abajo */
+.sala-mapa { position: relative; min-height: clamp(620px, 82vh, 860px); }
 .mapa-lienzo { position: absolute; inset: 0; }
 .sala-mapa > .mapa-lienzo { height: 100%; }
 
@@ -543,4 +545,27 @@ td { padding: 10px; border-bottom: 1px solid #f0ebdf; }
   .registro-fila { grid-template-columns: 1fr 24px; }
   .registro-celda-lugar { order: -1; }
   .registro-flecha { grid-row: 1; grid-column: 2; }
+}
+
+/* ---- Conmutador Mapa/Tabla de la sala de situación ---- */
+.conmutador-sala {
+  display: inline-flex; gap: 4px;
+  background: rgba(31, 58, 95, 0.08);
+  border: 1px solid var(--borde-papel);
+  border-radius: 999px; padding: 5px;
+  margin: 0 24px 18px;
+  box-shadow: var(--sombra-papel);
+}
+.conmutador-opcion {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: none; cursor: pointer;
+  background: transparent; color: var(--tinta);
+  font-family: inherit; font-weight: 700; font-size: 1rem;
+  padding: 11px 26px; border-radius: 999px;
+  transition: background .15s ease, color .15s ease, transform .12s ease;
+}
+.conmutador-opcion:hover { transform: translateY(-1px); }
+.conmutador-opcion.activa {
+  background: var(--tinta); color: var(--papel);
+  box-shadow: 0 2px 0 rgba(31, 58, 95, 0.35);
 }

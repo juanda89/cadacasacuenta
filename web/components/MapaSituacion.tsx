@@ -142,7 +142,7 @@ function crearMapa(contenedor: HTMLDivElement) {
     bounds: COLOMBIA_CONTINENTAL,
     fitBoundsOptions: { padding: 28 },
     maxBounds: LIMITES_MAXIMOS,
-    minZoom: 4.2,
+    minZoom: 3.6, // deja que el fitBounds inicial muestre el país entero aunque el lienzo sea bajo
     maxZoom: 18, // con calles OSM el zoom de barrio sí sirve para ubicarse
     attributionControl: false,
     // zoom directo con el scroll: pedido explícito (sin Ctrl/⌘)

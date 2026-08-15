@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { enviarGlobos, enviarBotones, indicarEscribiendo, descargarMedia } from "./kapso";
 import { aGlobos, ESTILO_PROMPT } from "./estilo";
 import { completa, transcribe } from "./llm";
+import { completaLugar } from "./geo";
 
 /**
  * El agente de Cada Casa Cuenta.
@@ -97,6 +98,7 @@ export async function procesarMensaje(m: MensajeEntrante) {
         .from("casos")
         .update({ ubicacion: `SRID=4326;POINT(${coords.lng} ${coords.lat})`, ubicacion_por_texto: false })
         .eq("id", conv.caso_id);
+      await completaLugar(db, conv.caso_id, coords.lat, coords.lng);
       textoUsuario += `\n[Sistema: se detectaron coordenadas ${coords.lat}, ${coords.lng} en el mensaje y la ubicación ya quedó guardada]`;
     }
   } else if (m.tipo === "location" && m.lat != null && m.lng != null) {
@@ -106,6 +108,8 @@ export async function procesarMensaje(m: MensajeEntrante) {
         .from("casos")
         .update({ ubicacion: `SRID=4326;POINT(${m.lng} ${m.lat})`, ubicacion_por_texto: false })
         .eq("id", conv.caso_id);
+      // El barrio/municipio se completan solos desde la coordenada (Nominatim)
+      await completaLugar(db, conv.caso_id, m.lat, m.lng);
     }
   } else if ((m.tipo === "image" || m.tipo === "document") && m.mediaId) {
     const bin = await descargarMedia(m.mediaId);
