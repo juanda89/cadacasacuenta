@@ -8,7 +8,9 @@ import { completa, transcribe } from "./llm";
  * El agente de Cada Casa Cuenta.
  *
  * Reglas de producto no negociables:
- *  - Voz de "usted" cálido; jamás "víctima"/"damnificado"/"el inmueble".
+ *  - Voz de "tú" cálido (override del usuario, 2026-08-14: el bot tutea
+ *    siguiendo docs/kit-estilo-whatsapp.md; la web institucional mantiene
+ *    el usted). Jamás "víctima"/"damnificado"/"el inmueble".
  *  - El consentimiento habeas data abre la conversación, y la respuesta
  *    LITERAL queda archivada en `consentimientos` (Ley 1581 de 2012).
  *  - Incremental, no interrogatorio: solo pregunta lo que falta.
@@ -38,7 +40,7 @@ type Conversacion = {
 
 const SALUDO =
   "Hola 🤝 soy el asistente de Cada Casa Cuenta. Lamento mucho lo que están viviendo.\n---\n" +
-  "Estoy aquí para que lo que le pasó a su casa y lo que su familia necesita quede " +
+  "Estoy aquí para que lo que le pasó a tu casa y lo que tu familia necesita quede " +
   "registrado, con evidencia, donde las autoridades lo pueden ver.";
 
 export async function procesarMensaje(m: MensajeEntrante) {
@@ -206,9 +208,9 @@ export async function procesarMensaje(m: MensajeEntrante) {
       conv.caso_id = caso!.id;
       conv.fase = "recolectando";
       respuesta =
-        "Listo, quedó registrada su autorización 🤝\n---\n" +
-        "Me puede escribir o mandar notas de voz, como le quede más fácil.\n---\n" +
-        "Para empezar: ¿me cuenta qué pasó con su casa, y en qué municipio y barrio o vereda está?";
+        "Listo, quedó registrada tu autorización 🤝\n---\n" +
+        "Puedes escribirme o mandarme notas de voz, como te quede más fácil.\n---\n" +
+        "Para empezar: cuéntame qué pasó con tu casa, ¿y en qué municipio y barrio o vereda está?";
     } else if (acepta === false) {
       await db.from("consentimientos").insert({
         telefono: m.telefono,
@@ -221,14 +223,14 @@ export async function procesarMensaje(m: MensajeEntrante) {
       });
       conv.fase = "rechazado";
       respuesta =
-        "Entiendo, y respeto su decisión: no guardaré ningún dato suyo.\n---\n" +
-        "Si cambia de opinión, escríbame a este mismo número cuando quiera. Que estén bien.";
+        "Entiendo, y respeto tu decisión: no guardaré ningún dato tuyo.\n---\n" +
+        "Si cambias de opinión, escríbeme a este mismo número cuando quieras. Que estén bien.";
     } else {
       respuesta =
-        "Disculpe si no fui claro.\n---\n" +
-        "Solo necesito saber si autoriza que registremos los datos que me comparta, para que las " +
-        "autoridades y los ingenieros voluntarios puedan ver su caso.\n---\n" +
-        "Tóqueme el botón, o respóndame sí o no, como le quede más fácil.";
+        "Disculpa si no fui claro.\n---\n" +
+        "Solo necesito saber si autorizas que registremos los datos que me compartas, para que las " +
+        "autoridades y los ingenieros voluntarios puedan ver tu caso.\n---\n" +
+        "Toca el botón, o respóndeme sí o no, como te quede más fácil.";
     }
     conv.historial = [
       ...conv.historial,
@@ -302,13 +304,13 @@ ${JSON.stringify({ ...caso, id: undefined }, null, 1)}
 NECESIDADES REGISTRADAS: ${JSON.stringify(necesidades ?? [])}
 
 REQUISITOS MÍNIMOS — sin los tres, el caso NO queda registrado (el sistema lo rechaza):
-a. UBICACIÓN por pin de WhatsApp (clip 📎 → Ubicación → Enviar mi ubicación actual). Explíquelo así de concreto. La dirección escrita ayuda pero NO reemplaza el pin: insista con paciencia hasta recibirlo.
+a. UBICACIÓN por pin de WhatsApp (clip 📎 → Ubicación → Enviar mi ubicación actual). Explícalo así de concreto. La dirección escrita ayuda pero NO reemplaza el pin: insiste con paciencia y calidez hasta recibirlo.
 b. Al menos UNA FOTO del daño o del lugar (o nota de voz contando lo ocurrido, que también queda como evidencia).
 c. La DESCRIPCIÓN de qué pasó, en palabras de la persona.
 
 MÍNIMOS DE ESTE CASO AHORA MISMO: ${JSON.stringify(minimos)} — persiga primero lo que esté en false.
 
-Datos que importan (pregunte SOLO lo que falte, en orden de conversación natural, no de formulario):
+Datos que importan (pregunta SOLO lo que falte, en orden de conversación natural, no de formulario):
 1. Los tres mínimos de arriba, siempre primero
 2. direccion, tipo_inmueble (casa|apartamento|edificio|otro), unidad si aplica, municipio_nombre + barrio
 3. ¿tiene_dano_estructural? ¿sin_vivienda? (¿dónde están durmiendo?)
@@ -320,7 +322,7 @@ Datos que importan (pregunte SOLO lo que falte, en orden de conversación natura
 
 RESPONDE SOLO ESTE JSON:
 {
- "mensaje": "tu respuesta a la persona (cálida, de usted, UNA sola pregunta; 2-3 globos separados con una línea que contenga solo ---)",
+ "mensaje": "tu respuesta a la persona (cálida, de tú, UNA sola pregunta; 2-3 globos separados con una línea que contenga solo ---)",
  "patch_caso": { /* SOLO campos de casos que este mensaje permita llenar, con los nombres exactos de arriba. {} si nada */ },
  "nombre_contacto": "si lo dijo, aquí; si no, null",
  "nuevas_necesidades": [ { "tipo": "...", "detalle": "...", "urgente": false } ],
@@ -333,7 +335,7 @@ RESPONDE SOLO ESTE JSON:
     true
   );
 
-  let mensaje = "Gracias por contarme. ¿Me repite lo último? No le entendí bien.";
+  let mensaje = "Gracias por contarme. ¿Me repites lo último? No te entendí bien.";
   try {
     const r = JSON.parse(salida);
     mensaje = r.mensaje ?? mensaje;
@@ -380,13 +382,13 @@ RESPONDE SOLO ESTE JSON:
       if (!chequeo.cumple) {
         const faltantes: string[] = [];
         if (!chequeo.tiene_ubicacion)
-          faltantes.push("el pin de su ubicación (clip 📎 → Ubicación → Enviar mi ubicación actual)");
+          faltantes.push("el pin de tu ubicación (clip 📎 → Ubicación → Enviar mi ubicación actual)");
         if (!chequeo.tiene_evidencia) faltantes.push("una foto del daño (o una nota de voz contando lo que pasó)");
-        if (!chequeo.tiene_descripcion) faltantes.push("que me cuente qué pasó con su casa");
+        if (!chequeo.tiene_descripcion) faltantes.push("que me cuentes qué pasó con tu casa");
         mensaje =
-          `Ya casi queda registrado su caso. Para que un ingeniero pueda encontrarlo y verificarlo solo me falta: ${faltantes.join(
+          `Ya casi queda registrado tu caso 🙌\n---\nSolo me falta: ${faltantes.join(
             "; y "
-          )}. ¿Me lo puede mandar por aquí?`;
+          )}.\n---\n¿Me lo puedes mandar por aquí?`;
       } else {
         const { error: promo } = await db
           .from("casos")
@@ -399,9 +401,9 @@ RESPONDE SOLO ESTE JSON:
         const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/caso/${c!.codigo_publico}`;
         mensaje =
           `${mensaje}\n---\n` +
-          `Su caso ya quedó registrado ✅ Su código es *${c!.codigo_publico}*. ` +
-          `Guárdelo: este código es la prueba de que su caso existe, y con él cualquiera puede verlo aquí:\n${url}\n---\n` +
-          `Un ingeniero o arquitecto voluntario va a revisar su caso. Si algo cambia (se mudan, consiguen albergue, empeora el daño) escríbame a este número y lo actualizamos. Aquí sigo.`;
+          `Tu caso ya quedó registrado ✅ Tu código es *${c!.codigo_publico}*. ` +
+          `Guárdalo: este código es la prueba de que tu caso existe, y con él cualquiera puede verlo aquí:\n${url}\n---\n` +
+          `Un ingeniero o arquitecto voluntario va a revisar tu caso. Si algo cambia (se mudan, consiguen albergue, empeora el daño) escríbeme y lo actualizamos. Aquí sigo.`;
       }
     }
   } catch (e) {
