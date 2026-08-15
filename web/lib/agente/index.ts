@@ -235,6 +235,23 @@ export async function procesarMensaje(m: MensajeEntrante) {
   await enviarTexto(m.telefono, respuesta);
 }
 
+type Minimos = {
+  tiene_ubicacion: boolean;
+  tiene_evidencia: boolean;
+  tiene_descripcion: boolean;
+  cumple: boolean;
+};
+
+async function minimosDe(db: ReturnType<typeof supabaseAdmin>, casoId: string): Promise<Minimos> {
+  const { data } = await db.rpc("caso_minimos", { p_caso: casoId });
+  return (data ?? {
+    tiene_ubicacion: false,
+    tiene_evidencia: false,
+    tiene_descripcion: false,
+    cumple: false,
+  }) as Minimos;
+}
+
 async function turnoRecoleccion(
   db: ReturnType<typeof supabaseAdmin>,
   conv: Conversacion,
@@ -246,6 +263,7 @@ async function turnoRecoleccion(
     .from("necesidades")
     .select("tipo, detalle, urgente")
     .eq("caso_id", conv.caso_id!);
+  const minimos = await minimosDe(db, conv.caso_id!);
 
   const sistema = `Eres el asistente de WhatsApp de "Cada Casa Cuenta", el registro humanitario del terremoto del Chocó (Colombia, 2026). Hablas SIEMPRE de "usted", con la calidez respetuosa del campo colombiano. Frases cortas. UNA sola pregunta por mensaje. Jamás dices "víctima", "damnificado" ni "el inmueble". Jamás prometes ayuda, casas o subsidios: prometes que el caso queda registrado, con evidencia, visible para autoridades y profesionales voluntarios. Si la persona cuenta algo doloroso, reconócelo con humanidad y brevedad antes de seguir.
 
@@ -253,16 +271,22 @@ ESTADO ACTUAL DEL CASO (código ${caso!.codigo_publico}):
 ${JSON.stringify({ ...caso, id: undefined }, null, 1)}
 NECESIDADES REGISTRADAS: ${JSON.stringify(necesidades ?? [])}
 
-TU OBJETIVO: completar el caso conversando con naturalidad. Datos que importan (pregunta SOLO lo que falte, en orden de conversación natural, no de formulario):
-1. ubicacion (pídale compartir el pin de WhatsApp: clip 📎 → Ubicación) — si no puede, direccion descrita + municipio_nombre + barrio
-2. direccion, tipo_inmueble (casa|apartamento|edificio|otro), unidad si aplica
-3. ¿tiene_dano_estructural? descripcion del daño; ¿sin_vivienda? (¿dónde están durmiendo?)
+REQUISITOS MÍNIMOS — sin los tres, el caso NO queda registrado (el sistema lo rechaza):
+a. UBICACIÓN por pin de WhatsApp (clip 📎 → Ubicación → Enviar mi ubicación actual). Explíquelo así de concreto. La dirección escrita ayuda pero NO reemplaza el pin: insista con paciencia hasta recibirlo.
+b. Al menos UNA FOTO del daño o del lugar (o nota de voz contando lo ocurrido, que también queda como evidencia).
+c. La DESCRIPCIÓN de qué pasó, en palabras de la persona.
+
+MÍNIMOS DE ESTE CASO AHORA MISMO: ${JSON.stringify(minimos)} — persiga primero lo que esté en false.
+
+Datos que importan (pregunte SOLO lo que falte, en orden de conversación natural, no de formulario):
+1. Los tres mínimos de arriba, siempre primero
+2. direccion, tipo_inmueble (casa|apartamento|edificio|otro), unidad si aplica, municipio_nombre + barrio
+3. ¿tiene_dano_estructural? ¿sin_vivienda? (¿dónde están durmiendo?)
 4. relacion_vivienda (propietario|arrendatario|poseedor|familiar|vecino|lider_comunitario|otro), habitabilidad_percibida (si|no|no_sabe)
 5. num_habitantes, num_menores, num_adultos_mayores, hay_discapacidad
 6. necesidades: albergue|agua|alimentos|salud|medicamentos|psicosocial|proteccion|otra (con urgente true/false)
 7. nombre de contacto
-8. fotos como evidencia (pídelas una vez, no bloqueante: "si puede, mándeme fotos del daño")
-9. es_colectivo + num_familias si reporta por una comunidad
+8. es_colectivo + num_familias si reporta por una comunidad
 
 RESPONDE SOLO ESTE JSON:
 {
@@ -270,7 +294,7 @@ RESPONDE SOLO ESTE JSON:
  "patch_caso": { /* SOLO campos de casos que este mensaje permita llenar, con los nombres exactos de arriba. {} si nada */ },
  "nombre_contacto": "si lo dijo, aquí; si no, null",
  "nuevas_necesidades": [ { "tipo": "...", "detalle": "...", "urgente": false } ],
- "caso_completo": false /* true SOLO cuando ya tengas ubicación (o dirección+municipio), qué pasó, habitantes y nombre */
+ "caso_completo": false /* true SOLO cuando los tres mínimos estén cumplidos Y tenga habitantes y nombre */
 }`;
 
   const historialLlm = conv.historial.slice(-16).map((h) => ({ role: h.role, content: h.content }));
@@ -320,13 +344,34 @@ RESPONDE SOLO ESTE JSON:
     }
 
     if (r.caso_completo === true) {
-      conv.fase = "cerrado";
-      const { data: c } = await db.from("casos").select("codigo_publico").eq("id", conv.caso_id!).single();
-      const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/caso/${c!.codigo_publico}`;
-      mensaje =
-        `${mensaje}\n\nSu caso ya quedó registrado. Su código es *${c!.codigo_publico}*. ` +
-        `Guárdelo: es la prueba de que su caso existe, y con él cualquiera puede verlo aquí:\n${url}\n\n` +
-        `Un ingeniero o arquitecto voluntario va a revisar su caso. Si algo cambia — se mudan, consiguen albergue, empeora el daño — escríbame a este número y lo actualizamos.`;
+      // El LLM propone el cierre, pero la BD decide: sin ubicación, evidencia
+      // y relato el caso no sale de borrador (trigger tg_casos_exige_minimos).
+      const chequeo = await minimosDe(db, conv.caso_id!);
+      if (!chequeo.cumple) {
+        const faltantes: string[] = [];
+        if (!chequeo.tiene_ubicacion)
+          faltantes.push("el pin de su ubicación (clip 📎 → Ubicación → Enviar mi ubicación actual)");
+        if (!chequeo.tiene_evidencia) faltantes.push("una foto del daño (o una nota de voz contando lo que pasó)");
+        if (!chequeo.tiene_descripcion) faltantes.push("que me cuente qué pasó con su casa");
+        mensaje =
+          `Ya casi queda registrado su caso. Para que un ingeniero pueda encontrarlo y verificarlo solo me falta: ${faltantes.join(
+            "; y "
+          )}. ¿Me lo puede mandar por aquí?`;
+      } else {
+        const { error: promo } = await db
+          .from("casos")
+          .update({ estado: "reportado" })
+          .eq("id", conv.caso_id!)
+          .eq("estado", "borrador");
+        if (promo) console.error("promocion caso", promo);
+        conv.fase = "cerrado";
+        const { data: c } = await db.from("casos").select("codigo_publico").eq("id", conv.caso_id!).single();
+        const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/caso/${c!.codigo_publico}`;
+        mensaje =
+          `${mensaje}\n\nSu caso ya quedó registrado. Su código es *${c!.codigo_publico}*. ` +
+          `Guárdelo: es la prueba de que su caso existe, y con él cualquiera puede verlo aquí:\n${url}\n\n` +
+          `Un ingeniero o arquitecto voluntario va a revisar su caso. Si algo cambia — se mudan, consiguen albergue, empeora el daño — escríbame a este número y lo actualizamos.`;
+      }
     }
   } catch (e) {
     console.error("turnoRecoleccion parse", e, salida?.slice(0, 300));

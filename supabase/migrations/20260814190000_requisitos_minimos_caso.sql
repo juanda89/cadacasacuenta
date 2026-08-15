@@ -1,0 +1,24 @@
+-- ============================================================
+-- Cada Casa Cuenta — Requisitos mínimos para que un caso exista
+--
+-- Problema: el caso se creaba en el instante en que la familia daba el
+-- consentimiento, sin ubicación, sin evidencia y sin relato. El registro se
+-- llenaba de casos vacíos — justo lo contrario de lo que la plataforma
+-- promete: un censo trazable, con evidencia, que una autoridad pueda creer.
+--
+-- Solución: el caso nace en 'borrador'. Existe como ancla (la evidencia y el
+-- consentimiento necesitan un caso_id al que colgarse desde el primer
+-- minuto), pero NO cuenta, NO sale en el mapa y NO entra a la cola de los
+-- profesionales hasta cumplir los mínimos:
+--
+--   1. ubicacion  — el pin de WhatsApp, con lat/lng reales
+--   2. evidencia  — al menos una foto, audio, video o documento
+--   3. descripcion — qué le pasó a la casa, en palabras de la familia
+--
+-- El trigger es la última línea de defensa: aunque el agente tenga un bug o
+-- alguien escriba por SQL, un caso sin mínimos no puede salir de 'borrador'.
+-- Un caso sin pin no se promueve "a la fuerza": se geocodifica la dirección
+-- (se le pone ubicacion) y entonces sí cumple. La regla no se esquiva.
+-- ============================================================
+
+alter type public.estado_caso add value if not exists 'borrador' before 'reportado';
