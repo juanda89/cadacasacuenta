@@ -90,6 +90,17 @@ async function drenar(db: ReturnType<typeof supabaseAdmin>, telefono: string) {
         .order("id")
         .limit(20);
       if (!pendientes || pendientes.length === 0) break;
+      // Álbum: WhatsApp entrega cada foto como mensaje aparte en ~4s. Si lo
+      // pendiente es puro media, damos una espera extra a que caiga completo
+      // para responder UNA vez por el álbum entero (caso real del 15-ago).
+      const soloMedia = pendientes.every((p) => {
+        const t = (p.payload as MensajeEntrante).tipo;
+        return t !== "text" && t !== "location";
+      });
+      if (ronda === 0 && soloMedia) {
+        await espera(2500);
+        continue;
+      }
       const ids = pendientes.map((p) => p.id);
       await db.from("bot_entrantes").update({ estado: "procesando" }).in("id", ids);
       try {
