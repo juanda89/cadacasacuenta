@@ -45,10 +45,11 @@ function celda(v: unknown): string {
   return /[",\n;]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 }
 
-export function aCsv(filas: FilaExporte[]): string {
+export function aCsv(filas: FilaExporte[], columnasExtra: [string, string][] = []): string {
   const bom = "﻿"; // Excel en Windows respeta UTF-8 solo con BOM
-  const cab = COLUMNAS.map(([n]) => n).join(",");
-  const cuerpo = filas.map((f) => COLUMNAS.map(([, k]) => celda(f[k])).join(",")).join("\n");
+  const cols = [...COLUMNAS, ...columnasExtra];
+  const cab = cols.map(([n]) => n).join(",");
+  const cuerpo = filas.map((f) => cols.map(([, k]) => celda(f[k])).join(",")).join("\n");
   return `${bom}${cab}\n${cuerpo}\n`;
 }
 
